@@ -1,1 +1,3 @@
 data/nela-covid-2020/
+cnn_bart_encodings.pkl
+distilbert_encodings.pkl

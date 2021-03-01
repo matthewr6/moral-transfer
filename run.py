@@ -87,17 +87,21 @@ class MoralClassifier(torch.nn.Module):
     def __init__(self):
         super(MoralClassifier, self).__init__()
         self.l1 = BartModel.from_pretrained('facebook/bart-large-cnn') 
-        self.l2 = torch.nn.Dropout(0.3)
-        self.l3 = torch.nn.Linear(1024, 11) # 11 categories
+        # Pooler
+        self.l2 = torch.nn.Linear(1024, 1024)
+        self.act = torch.nn.Tanh()
+        # Classifier
+        self.l3 = torch.nn.Dropout(0.3)
+        self.l4 = torch.nn.Linear(1024, 11) # 11 categories
 
     def forward(self, ids, mask):
-        output_1 = self.l1(ids, attention_mask = mask)
-        output_2 = self.l2(output_1)
-        output = self.l3(output_2)
+        output_1 = self.l1(ids, attention_mask = mask).last_hidden_state
+        output_2 = self.act(self.l2(output_1[:, 0]))
+        output_3 = self.l3(output_2)
+        output = self.l4(output_3)
         return output
 
 
-import pdb; pdb.set_trace()
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 model = MoralClassifier()
 model = model.to(device)
@@ -129,6 +133,7 @@ def train(epoch):
 for epoch in tqdm(range(EPOCHS)):
     train(epoch)
 
+print("Training Done")
 
 def validation(epoch):
     model.eval()

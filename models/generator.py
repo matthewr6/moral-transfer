@@ -24,26 +24,36 @@ from transformers import BartModel, BartForConditionalGeneration
 # https://medium.com/inside-machine-learning/what-is-a-transformer-d07dd1fbec04
 # https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec
 # https://github.com/jayparks/transformer/blob/master/transformer/models.py
-class MoralTransformer(pl.LightningModule):
 
-    def __init__(self, n_intermediate=512):
+# Stacks moral vector with encoded representation, prior to decoder.
+class MoralTransformer(pl.LightningModule):
+    seq_len = 1024
+
+    def __init__(self, n_intermediate=512, moral_vec_size=5):
         super().__init__()
-        self.pretrained = BartModel.from_pretrained('facebook/bart-large-cnn') # https://huggingface.co/transformers/model_doc/bart.html#bartmodel, last_hidden_state 
-        self.linear = nn.Linear(1029, n_intermediate)
-        decoder_layer = nn.TransformerDecoderLayer(d_model=n_intermediate, nhead=8, dim_feedforward=2048, dropout=0.1, activation='relu')
+        # Load pretrained model
+        self.pretrained = BartModel.from_pretrained('facebook/bart-large-cnn') # https://huggingface.co/transformers/model_doc/bart.html#bartmodel, last_hidden_state
+        self.n_vocab = self.pretrained.shared.num_embeddings
+
+        # Linear layer to combine encodings and moral features
+        self.linear = nn.Linear(self.seq_len + moral_vec_size, n_intermediate)
+
+        # Decoder
+        decoder_layer = nn.TransformerDecoderLayer(d_model=n_intermediate, nhead=8, dim_feedforward=1024, dropout=0.1, activation='relu')
         self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=6)
+        self.decoder_head = nn.Linear(n_intermediate, self.n_vocab)
 
     def forward(self, source, moral_target, generated):
-        # x = (source, generated target, moral vec)
-        # in lightning, forward defines the prediction/inference actions
-        embedding = self.pretrained.encoder(source).last_hidden_state
-        # pred = self.decoder([embedding, x[1]])
-        copied_morals = torch.unsqueeze(moral_target, 1).repeat(1, 1024, 1)
-        embedding = torch.cat((embedding, copied_morals), 2)
-        embedding = self.linear(embedding)
-        print(embedding.size(), generated.size())
-        # do stuff with decoder
-        return self.decoder(generated, embedding)
+        copied_morals = torch.unsqueeze(moral_target, 1).repeat(1, self.seq_len, 1)
+
+        encoded = self.pretrained.encoder(source).last_hidden_state
+        encoded = torch.cat((encoded, copied_morals), 2)
+        encoded = self.linear(encoded)
+
+        decoded = self.decoder_head(generated, encoded)
+        
+        head = self.head(decoded)
+        return head
 
     def training_step(self, batch, batch_idx):
         return
@@ -65,6 +75,9 @@ class MoralTransformer(pl.LightningModule):
 
 if __name__ == '__main__':
     transformer = MoralTransformer()
-    print(transformer.pretrained)
-    res = transformer.forward(torch.LongTensor([[0] * 1024]), torch.FloatTensor([[1,2,3,4,5]]), torch.FloatTensor([[[0] * 512]* 1024]))
+    # print(transformer.pretrained)
+    source = torch.LongTensor([[0] * 1024])
+    moral_target = torch.FloatTensor([[1,2,3,4,5]])
+    generated = torch.FloatTensor([[[0] * 512]* 1024])
+    res = transformer.forward(source, moral_target, generated)
     print(res.size())

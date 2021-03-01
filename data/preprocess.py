@@ -12,12 +12,12 @@ from tokenizers.trainers import BpeTrainer
 from tokenizers.pre_tokenizers import Whitespace
 
 moral_foundations = sorted(MORAL_FOUNDATION_DICT.keys())
+print(moral_foundations)
 
 nela = NELAFeatureExtractor()
 extractor = nela.extract_moral
 
 def add_moral_features(data):
-    print(moral_foundations)
     preprocessed = []
     for article in tqdm(data):
         try:

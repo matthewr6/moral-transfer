@@ -5,20 +5,15 @@ import os
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torchvision import transforms
-from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
 import numpy as np
 import pandas as pd
-import numpy as np
-import pandas as pd
 from sklearn import metrics
 import transformers
-import torch
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
-from transformers import BertTokenizer, BertModel, BertConfig
 import transformers
+from transformers import BertTokenizer, BertModel, BertConfig
 from operator import itemgetter
 
 import torch
@@ -28,7 +23,6 @@ from transformers import BartModel, BartConfig
 
 from transformers import BartForSequenceClassification, BartTokenizer
 
-print('start')
 
 
 class NewsDataset(Dataset):

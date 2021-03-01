@@ -6,8 +6,14 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
+import numpy as np
+import pandas as pd
+from sklearn import metrics
+import transformers
+import torch
+from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
 
-from transformers import BartModel, BartForConditionalGeneration
+from transformers import BartModel, BartConfig
 
 # Inputs:
 #   - input sequence (to encoder)
@@ -22,26 +28,31 @@ from transformers import BartModel, BartForConditionalGeneration
 # https://medium.com/@max_garber/simple-keras-transformer-model-74724a83bb83 --> include encoder outputs at every decoder level --> could include moral vector to
 # https://medium.com/inside-machine-learning/what-is-a-transformer-d07dd1fbec04
 # https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec
-class MoralTransformer(pl.LightningModule):
 
+device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
+
+class MoralClassifier(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        pretrained = BartModel.from_pretrained('facebook/bart-large-cnn') # https://huggingface.co/transformers/model_doc/bart.html#bartmodel, last_hidden_state 
-        self.shared_embeddings = pretrained.shared
-        self.encoder = pretrained.encoder
+        self.Bart = BartModel.from_pretrained('facebook/bart-large-cnn') # https://huggingface.co/transformers/model_doc/bart.html#bartmodel, last_hidden_state 
+        self.Bart = self.Bart.to(device)
 
     def forward(self, x):
         # x = (source, generated target, moral vec)
         # in lightning, forward defines the prediction/inference actions
-        embedding = self.encoder(x[0])
+        # embedding = self.encoder(x[0])
         # pred = self.decoder([embedding, x[1]])
-        return embedding
+        y = self.Bart(x)
+        return y
 
     def training_step(self, batch, batch_idx):
         return
         # training_step defined the train loop.
         # It is independent of forward
-        # x, y = batch
+        x, y = batch
+        y_hat = self.forward(x)
+        return {'val_loss': F.cross_entropy(y_hat, y)}
+
         # x = x.view(x.size(0), -1)
         # z = self.encoder(x)
         # x_hat = self.decoder(z)
@@ -51,9 +62,15 @@ class MoralTransformer(pl.LightningModule):
         # return loss
 
     def configure_optimizers(self):
-        return
-        # optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        # return optimizer
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        return optimizer
 
-if __name__ == '__main__':
-    transformer = MoralTransformer()
+
+
+if __name__ == "__main__":
+    trainer = pl.Trainer(
+            gpus=0)
+
+    model = MoralTransformer()
+    trainer.fit(model)
+    trainer.test()

@@ -33,7 +33,6 @@ ipython-genutils==0.2.0
 ipywidgets==7.6.3
 jedi==0.18.0
 Jinja2==2.11.3
-joblib @ file:///tmp/build/80754af9/joblib_1607970656719/work
 jsonschema==3.2.0
 jupyter==1.0.0
 jupyter-client==6.1.11
@@ -53,9 +52,7 @@ nbclient==0.5.2
 nbconvert==6.0.7
 nbformat==5.1.2
 nest-asyncio==1.5.1
-nltk @ file:///tmp/build/80754af9/nltk_1592496090529/work
 notebook==6.2.0
-numpy @ file:///opt/concourse/worker/volumes/live/a1b5ea96-b05c-40ba-5dfb-4542ece1c186/volume/numpy_and_numpy_base_1603491228242/work
 oauthlib==3.1.0
 olefile==0.46
 packaging==20.9
@@ -64,7 +61,6 @@ pandocfilters==1.4.3
 parso==0.8.1
 pexpect==4.8.0
 pickleshare==0.7.5
-Pillow @ file:///opt/concourse/worker/volumes/live/dfab893a-afa4-4cd2-5a7e-fb894890ea44/volume/pillow_1609786793862/work
 portalocker==2.2.1
 prometheus-client==0.9.0
 prompt-toolkit==3.0.16
@@ -84,17 +80,14 @@ PyYAML==5.3.1
 pyzmq==22.0.3
 qtconsole==5.0.2
 QtPy==1.9.0
-regex @ file:///opt/concourse/worker/volumes/live/75a20732-2306-4d51-79ce-516009aca709/volume/regex_1606773011423/work
 requests==2.25.1
 requests-oauthlib==1.3.0
 rsa==4.7.2
 sacrebleu==1.5.0
 sacremoses==0.0.43
 scikit-learn==0.24.1
-scipy @ file:///opt/concourse/worker/volumes/live/53520250-e526-4734-60b4-b4658592fe75/volume/scipy_1612469556481/work
 Send2Trash==1.5.0
 sentencepiece==0.1.95
-six @ file:///opt/concourse/worker/volumes/live/f983ba11-c9fe-4dff-7ce7-d89b95b09771/volume/six_1605205318156/work
 sklearn==0.0
 tensorboard==2.4.1
 tensorboard-plugin-wit==1.8.0
@@ -106,11 +99,8 @@ torch==1.7.1
 torchvision==0.8.2
 tornado==6.1
 tqdm==4.49.0
-traitlets @ file:///tmp/build/80754af9/traitlets_1602787416690/work
 transformers==4.3.3
-typing-extensions @ file:///tmp/build/80754af9/typing_extensions_1611751222202/work
 urllib3==1.26.3
-wcwidth @ file:///tmp/build/80754af9/wcwidth_1593447189090/work
 webencodings==0.5.1
 Werkzeug==1.0.1
 widgetsnbextension==3.5.1

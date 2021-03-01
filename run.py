@@ -20,7 +20,7 @@ from operator import itemgetter
 import torch
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
 
-from transformers import BartModel, BartConfig
+from transformers import BartModel, BartConfig, DistilBertModel
 
 from transformers import BartForSequenceClassification, BartTokenizer
 
@@ -65,7 +65,7 @@ train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-TRAIN_BATCH_SIZE = 8
+TRAIN_BATCH_SIZE = 2
 VALID_BATCH_SIZE = 4
 EPOCHS = 1
 LEARNING_RATE = 1e-05
@@ -86,7 +86,8 @@ testing_loader = DataLoader(test_dataset, **test_params)
 class MoralClassifier(torch.nn.Module):
     def __init__(self):
         super(MoralClassifier, self).__init__()
-        self.l1 = BartModel.from_pretrained('facebook/bart-large-cnn') 
+        # self.l1 = DistilBertModel.from_pretrained('distilbert-base-uncased')
+        self.l1 = BartModel.from_pretrained('facebook/bart-large-cnn')
         # Pooler
         self.l2 = torch.nn.Linear(1024, 1024)
         self.act = torch.nn.Tanh()
@@ -95,7 +96,8 @@ class MoralClassifier(torch.nn.Module):
         self.l4 = torch.nn.Linear(1024, 11) # 11 categories
 
     def forward(self, ids, mask):
-        output_1 = self.l1(ids, attention_mask = mask).last_hidden_state
+        # output_1 = self.l1(ids, attention_mask = mask).last_hidden_state
+        output_1 = self.l1.encoder(ids, attention_mask = mask).last_hidden_state
         output_2 = self.act(self.l2(output_1[:, 0]))
         output_3 = self.l3(output_2)
         output = self.l4(output_3)

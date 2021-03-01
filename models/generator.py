@@ -8,7 +8,7 @@ from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
 
-from transformers import BartModel, BartForConditionalGeneration
+from transformers import DistilBertModel
 
 # Inputs:
 #   - input sequence (to encoder)
@@ -27,16 +27,17 @@ from transformers import BartModel, BartForConditionalGeneration
 
 # Stacks moral vector with encoded representation, prior to decoder.
 class MoralTransformer(pl.LightningModule):
-    seq_len = 1024
+    seq_len = 512
 
     def __init__(self, n_intermediate=512, moral_vec_size=5):
         super().__init__()
         # Load pretrained model
-        self.pretrained = BartModel.from_pretrained('facebook/bart-large-cnn') # https://huggingface.co/transformers/model_doc/bart.html#bartmodel, last_hidden_state
-        self.n_vocab = self.pretrained.shared.num_embeddings
+        self.pretrained = DistilBertModel.from_pretrained('distilbert-base-uncased')
+        self.n_vocab = self.pretrained.embeddings.word_embeddings.num_embeddings
+        self.n_encoder_features = self.pretrained.transformer.layer[-1].output_layer_norm.normalized_shape[0]
 
         # Linear layer to combine encodings and moral features
-        self.linear = nn.Linear(self.seq_len + moral_vec_size, n_intermediate)
+        self.linear = nn.Linear(self.n_encoder_features + moral_vec_size, n_intermediate)
 
         # Decoder
         decoder_layer = nn.TransformerDecoderLayer(d_model=n_intermediate, nhead=8, dim_feedforward=1024, dropout=0.1, activation='relu')
@@ -46,13 +47,14 @@ class MoralTransformer(pl.LightningModule):
     def forward(self, source, moral_target, generated):
         copied_morals = torch.unsqueeze(moral_target, 1).repeat(1, self.seq_len, 1)
 
-        encoded = self.pretrained.encoder(source).last_hidden_state
+        encoded = self.pretrained(source).last_hidden_state
         encoded = torch.cat((encoded, copied_morals), 2)
+
         encoded = self.linear(encoded)
 
-        decoded = self.decoder_head(generated, encoded)
+        decoded = self.decoder(generated, encoded)
         
-        head = self.head(decoded)
+        head = self.decoder_head(decoded)
         return head
 
     def training_step(self, batch, batch_idx):
@@ -76,8 +78,8 @@ class MoralTransformer(pl.LightningModule):
 if __name__ == '__main__':
     transformer = MoralTransformer()
     # print(transformer.pretrained)
-    source = torch.LongTensor([[0] * 1024])
+    source = torch.LongTensor([[0] * 512])
     moral_target = torch.FloatTensor([[1,2,3,4,5]])
-    generated = torch.FloatTensor([[[0] * 512]* 1024])
+    generated = torch.FloatTensor([[[0] * 512]* 512])
     res = transformer.forward(source, moral_target, generated)
     print(res.size())

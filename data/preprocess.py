@@ -29,6 +29,21 @@ def add_moral_features(data):
         preprocessed.append(article)
     return preprocessed
 
+def add_headline_moral_features(data):
+    preprocessed = []
+    for article in tqdm(data):
+        try:
+            feature_vector, feature_names = extractor(article['content']) 
+        except:
+            continue
+        feature_dict = dict(zip(feature_names, feature_vector))
+        moral_features = [feature_dict[feature_name] for feature_name in moral_foundations]
+        preprocessed.append({
+            'content': article['title'],
+            'moral_features': moral_features
+        })
+    return preprocessed
+
 def strip_irrelevant_content(data, keys=['content', 'title', 'moral_features']):
     preprocessed = []
     for article in tqdm(data):
@@ -106,20 +121,23 @@ def apply_preprocessing(infile, method, outfile):
 
 # Multiple hours
 # Add moral features
-apply_preprocessing('nela-covid-2020/combined/unprocessed.json', add_moral_features, 'nela-covid-2020/combined/moral_features.json')
+# apply_preprocessing('nela-covid-2020/combined/unprocessed.json', add_moral_features, 'nela-covid-2020/combined/moral_features.json')
+apply_preprocessing('nela-covid-2020/combined/pared.json', add_headline_moral_features, 'nela-covid-2020/combined/headlines.pkl')
+apply_preprocessing('nela-covid-2020/combined/headlines.pkl', distilbert_encoding_encoding, 'nela-covid-2020/combined/headlines_distilbert.pkl')
+apply_preprocessing('nela-covid-2020/combined/headlines.pkl', cnn_bart_encoding, 'nela-covid-2020/combined/headlines_cnn_bart.pkl')
 
 # Seconds
 # Remove irrelevant info to scale down file size
-apply_preprocessing('nela-covid-2020/combined/moral_features.json', strip_irrelevant_content, 'nela-covid-2020/combined/pared.json')
+# apply_preprocessing('nela-covid-2020/combined/moral_features.json', strip_irrelevant_content, 'nela-covid-2020/combined/pared.json')
 
-# ???
-# Encoding for pretrained BART
-apply_preprocessing('nela-covid-2020/combined/pared.json', bart_encoding, 'nela-covid-2020/combined/bart_encodings.pkl')
-# Encoding for pretrained BERT
-apply_preprocessing('nela-covid-2020/combined/pared.json', distilbert_encoding, 'nela-covid-2020/combined/distilbert_encodings.pkl')
-# CNN Bart
-apply_preprocessing('nela-covid-2020/combined/pared.json', cnn_bart_encoding, 'nela-covid-2020/combined/cnn_bart_encodings.pkl')
+# # ???
+# # Encoding for pretrained BART
+# apply_preprocessing('nela-covid-2020/combined/pared.json', bart_encoding, 'nela-covid-2020/combined/bart_encodings.pkl')
+# # Encoding for pretrained BERT
+# apply_preprocessing('nela-covid-2020/combined/pared.json', distilbert_encoding, 'nela-covid-2020/combined/distilbert_encodings.pkl')
+# # CNN Bart
+# apply_preprocessing('nela-covid-2020/combined/pared.json', cnn_bart_encoding, 'nela-covid-2020/combined/cnn_bart_encodings.pkl')
 
-# ~30 min
-# Custom byte pair encoding
-apply_preprocessing('nela-covid-2020/combined/pared.json', byte_pair_encoding, 'nela-covid-2020/combined/custom_bpe.pkl')
+# # ~30 min
+# # Custom byte pair encoding
+# apply_preprocessing('nela-covid-2020/combined/pared.json', byte_pair_encoding, 'nela-covid-2020/combined/custom_bpe.pkl')

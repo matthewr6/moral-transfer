@@ -95,7 +95,7 @@ class MoralClassifier(torch.nn.Module):
         self.l4 = torch.nn.Linear(1024, 11) # 11 categories
 
     def forward(self, ids, mask):
-        output_1 = self.l1(ids, attention_mask = mask).last_hidden_state
+        output_1 = self.l1.encoder(ids, attention_mask = mask).last_hidden_state
         output_2 = self.act(self.l2(output_1[:, 0]))
         output_3 = self.l3(output_2)
         output = self.l4(output_3)
@@ -145,7 +145,7 @@ def validation(epoch):
             mask = data['mask'].to(device, dtype = torch.long)
             # token_type_ids = data['token_type_ids'].to(device, dtype = torch.long)
             targets = data['targets'].to(device, dtype = torch.float)
-            outputs = model(ids, mask, token_type_ids)
+            outputs = model(ids, mask)
             fin_targets.extend(targets.cpu().detach().numpy().tolist())
             fin_outputs.extend(torch.sigmoid(outputs).cpu().detach().numpy().tolist())
     return fin_outputs, fin_targets

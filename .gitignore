@@ -1,3 +1,4 @@
 data/nela-covid-2020/
-cnn_bart_encodings.pkl
-distilbert_encodings.pkl
+data/filtered_sources.txt
+.sftp-config.json
+*.pkl

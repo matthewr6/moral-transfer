@@ -4,6 +4,7 @@ import pickle
 import os
 import torch
 from torch import nn
+from tqdm import tqdm
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
 import pytorch_lightning as pl
@@ -51,11 +52,14 @@ class NewsDataset(Dataset):
             'targets': torch.tensor(targets, dtype=torch.float)
         }
 
+print("Start")
 file = open('cnn_bart_encodings.pkl', 'rb')
 data = pickle.load(file)
 file.close()
+print("Data Loaded")
 
-dataset = NewsDataset(data[1:10])
+# dummy to test pipeline
+dataset = NewsDataset(data[1:100])
 
 train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
@@ -87,14 +91,14 @@ class MoralClassifier(torch.nn.Module):
         self.l3 = torch.nn.Linear(1024, 11) # 11 categories
 
     def forward(self, ids, mask):
-        _, output_1= self.l1(ids, attention_mask = mask)
+        output_1 = self.l1(ids, attention_mask = mask)
         output_2 = self.l2(output_1)
         output = self.l3(output_2)
         return output
 
 
-
-device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
+import pdb; pdb.set_trace()
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 model = MoralClassifier()
 model = model.to(device)
 
@@ -122,7 +126,7 @@ def train(epoch):
         loss.backward()
         optimizer.step()
 
-for epoch in range(EPOCHS):
+for epoch in tqdm(range(EPOCHS)):
     train(epoch)
 
 
@@ -142,7 +146,7 @@ def validation(epoch):
     return fin_outputs, fin_targets
 
 
-for epoch in range(EPOCHS):
+for epoch in tqdm(range(EPOCHS)):
     outputs, targets = validation(epoch)
     outputs = np.array(outputs) >= 0.5
     accuracy = metrics.accuracy_score(targets, outputs)

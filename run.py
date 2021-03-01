@@ -28,6 +28,7 @@ from transformers import BartModel, BartConfig
 
 from transformers import BartForSequenceClassification, BartTokenizer
 
+print('start')
 
 
 class NewsDataset(Dataset):

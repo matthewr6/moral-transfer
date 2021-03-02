@@ -86,7 +86,7 @@ test_params = {'batch_size': VALID_BATCH_SIZE,
 training_loader = DataLoader(train_dataset, **train_params)
 testing_loader = DataLoader(test_dataset, **test_params)
 
-print("Training Examples: " + train_size)
+print("Training Examples: " + str(train_size))
 print(len(training_loader))
 
 

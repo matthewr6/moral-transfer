@@ -69,8 +69,8 @@ train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-TRAIN_BATCH_SIZE = 2
-VALID_BATCH_SIZE = 4
+TRAIN_BATCH_SIZE = 32
+VALID_BATCH_SIZE = 32
 EPOCHS = 15
 LEARNING_RATE = 1e-05
 train_params = {'batch_size': TRAIN_BATCH_SIZE,
@@ -117,7 +117,7 @@ optimizer = torch.optim.Adam(params =  model.parameters(), lr=LEARNING_RATE)
 
 def train(epoch):
     model.train()
-    for _,data in enumerate(training_loader, 0):
+    for _,data in tqdm(enumerate(training_loader, 0), "Training: "):
         ids = data['ids'].to(device, dtype = torch.long)
         mask = data['mask'].to(device, dtype = torch.long)
         # token_type_ids = data['token_type_ids'].to(device, dtype = torch.long)
@@ -135,7 +135,7 @@ def train(epoch):
         loss.backward()
         optimizer.step()
 
-for epoch in tqdm(range(EPOCHS), "Training: "):
+for epoch in range(EPOCHS):
     train(epoch)
 
 print("Training Done")

@@ -23,12 +23,15 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from transformers import BartModel, BartConfig, DistilBertModel
 
 from transformers import BartForSequenceClassification, BartTokenizer
+from collections import Counter
 
 
 
 class NewsDataset(Dataset):
     def __init__(self, data):
         self.data = data
+        self.unique_words = self.get_unique_words()
+
         labels = list(map(itemgetter('moral_features'), data))
         max_vals = [max(idx) for idx in zip(*labels)] 
         normalized_labels = [ [ val/max_vals[index] if max_vals[index] > 0 else val for index,val in enumerate(row)] for row in labels] # moral feature wise normalization
@@ -37,6 +40,10 @@ class NewsDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
+
+    def get_unique_words(self):
+        words_to_counts = Counter(self.words)  # this is a dictionary
+        return sorted(words_to_counts, key=words_to_counts.get, reverse=True)
 
     def __getitem__(self, index):
         article = self.data[index]

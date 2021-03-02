@@ -71,7 +71,7 @@ train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size
 
 TRAIN_BATCH_SIZE = 32
 VALID_BATCH_SIZE = 32
-EPOCHS = 15
+EPOCHS = 10
 LEARNING_RATE = 1e-05
 train_params = {'batch_size': TRAIN_BATCH_SIZE,
                 'shuffle': True,
@@ -85,6 +85,9 @@ test_params = {'batch_size': VALID_BATCH_SIZE,
 
 training_loader = DataLoader(train_dataset, **train_params)
 testing_loader = DataLoader(test_dataset, **test_params)
+
+print("Training Examples: " + train_size)
+print(len(training_loader))
 
 
 class MoralClassifier(torch.nn.Module):
@@ -128,7 +131,7 @@ def train(epoch):
 
         optimizer.zero_grad()
         loss = loss_fn(outputs, targets)
-        if _%5000==0:
+        if _%len(training_loader)==0:
             print(f'Epoch: {epoch}, Loss:  {loss.item()}')
         
         optimizer.zero_grad()

@@ -56,6 +56,7 @@ print("Start")
 # file = open('cnn_bart_encodings.pkl', 'rb')
 file = open('headlines_cnn_bart.pkl', 'rb')
 data = pickle.load(file)
+data = [d for d in data if sum(d['moral_features'])]
 file.close()
 print("Data Loaded")
 

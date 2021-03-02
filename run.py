@@ -53,7 +53,8 @@ class NewsDataset(Dataset):
         }
 
 print("Start")
-file = open('cnn_bart_encodings.pkl', 'rb')
+# file = open('cnn_bart_encodings.pkl', 'rb')
+file = open('headlines_cnn_bart.pkl', 'rb')
 data = pickle.load(file)
 file.close()
 print("Data Loaded")

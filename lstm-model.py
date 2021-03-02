@@ -39,8 +39,4 @@ class Model(nn.LSTM):
         out_pack, (ht, ct) = self.lstm(x_pack)
         return self.linear(ht[-1])
 
-    def init_state(self, sequence_length):
-        return (torch.zeros(self.num_layers, sequence_length, self.lstm_size),
-                torch.zeros(self.num_layers, sequence_length, self.lstm_size))
-
 # train(model, epochs=30, lr=0.05)

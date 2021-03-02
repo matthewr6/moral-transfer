@@ -61,7 +61,9 @@ file.close()
 print("Data Loaded")
 
 # dummy to test pipeline
-dataset = NewsDataset(data[1:100])
+# dataset = NewsDataset(data[1:100])
+dataset = NewsDataset(data)
+
 
 train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
@@ -69,7 +71,7 @@ train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size
 
 TRAIN_BATCH_SIZE = 2
 VALID_BATCH_SIZE = 4
-EPOCHS = 1
+EPOCHS = 15
 LEARNING_RATE = 1e-05
 train_params = {'batch_size': TRAIN_BATCH_SIZE,
                 'shuffle': True,
@@ -133,7 +135,7 @@ def train(epoch):
         loss.backward()
         optimizer.step()
 
-for epoch in tqdm(range(EPOCHS)):
+for epoch in tqdm(range(EPOCHS), "Training: "):
     train(epoch)
 
 print("Training Done")
@@ -143,7 +145,7 @@ def validation(epoch):
     fin_targets=[]
     fin_outputs=[]
     with torch.no_grad():
-        for _, data in enumerate(testing_loader, 0):
+        for _, data in tqdm(enumerate(testing_loader, 0), "Testing: "):
             ids = data['ids'].to(device, dtype = torch.long)
             mask = data['mask'].to(device, dtype = torch.long)
             # token_type_ids = data['token_type_ids'].to(device, dtype = torch.long)
@@ -153,13 +155,12 @@ def validation(epoch):
             fin_outputs.extend(torch.sigmoid(outputs).cpu().detach().numpy().tolist())
     return fin_outputs, fin_targets
 
-
-for epoch in tqdm(range(EPOCHS)):
-    outputs, targets = validation(epoch)
-    outputs = np.array(outputs) >= 0.5
-    accuracy = metrics.accuracy_score(targets, outputs)
-    f1_score_micro = metrics.f1_score(targets, outputs, average='micro')
-    f1_score_macro = metrics.f1_score(targets, outputs, average='macro')
-    print(f"Accuracy Score = {accuracy}")
-    print(f"F1 Score (Micro) = {f1_score_micro}")
-    print(f"F1 Score (Macro) = {f1_score_macro}")
+# validate
+outputs, targets = validation(epoch)
+outputs = np.array(outputs) >= 0.5
+accuracy = metrics.accuracy_score(targets, outputs)
+f1_score_micro = metrics.f1_score(targets, outputs, average='micro')
+f1_score_macro = metrics.f1_score(targets, outputs, average='macro')
+print(f"Accuracy Score = {accuracy}")
+print(f"F1 Score (Micro) = {f1_score_micro}")
+print(f"F1 Score (Macro) = {f1_score_macro}")

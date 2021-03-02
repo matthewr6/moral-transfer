@@ -20,7 +20,7 @@ from operator import itemgetter
 import torch
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
 
-from transformers import BartModel, BartConfig
+from transformers import BartModel, BartConfig, DistilBertModel
 
 from transformers import BartForSequenceClassification, BartTokenizer
 
@@ -66,7 +66,7 @@ train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-TRAIN_BATCH_SIZE = 8
+TRAIN_BATCH_SIZE = 2
 VALID_BATCH_SIZE = 4
 EPOCHS = 1
 LEARNING_RATE = 1e-05
@@ -87,7 +87,8 @@ testing_loader = DataLoader(test_dataset, **test_params)
 class MoralClassifier(torch.nn.Module):
     def __init__(self):
         super(MoralClassifier, self).__init__()
-        self.l1 = BartModel.from_pretrained('facebook/bart-large-cnn') 
+        # self.l1 = DistilBertModel.from_pretrained('distilbert-base-uncased')
+        self.l1 = BartModel.from_pretrained('facebook/bart-large-cnn')
         # Pooler
         self.l2 = torch.nn.Linear(1024, 1024)
         self.act = torch.nn.Tanh()

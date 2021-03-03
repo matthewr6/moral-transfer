@@ -42,9 +42,10 @@ def tagme(input_file, output_file, token):
                 w.write('{}\t{}\n'.format(tid, res.text.replace('\n', ' ')))
             else:
                 print('failed to link {}, {}'.format(line_idx, tid))
-            # if line_idx % 100 == 0:
-            #     print('[{}] sleep for 1 minute'.format(line_idx))
-            #     time.sleep(60)
+            if line_idx % 100 == 0:
+                # print('[{}] sleep for 1 minute'.format(line_idx))
+                # time.sleep(60)
+                print("Line number:" + line_idx)
 
 
 if __name__ == '__main__':

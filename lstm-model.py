@@ -29,7 +29,7 @@ class Model(nn.LSTM):
 
         vocab_len = len(dataset.unique_words)
         self.embeddings = nn.Embedding(vocab_len, self.embedding_dim, padding_idx=0)
-        self.lstm = nn.LSTM(self.embedding_dim, self.hidden_size, batch_first=True)
+        self.lstm = nn.LSTM(self.embedding_dim, self.hidden_size, bidirectional=True)
         self.linear = nn.Linear(self.hidden_size, 5)
 
     def forward(self, x, s):

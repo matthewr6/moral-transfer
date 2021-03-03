@@ -29,7 +29,7 @@ from transformers import BartTokenizerFast, BertTokenizerFast
 # Stacks moral vector with encoded representation, prior to decoder.
 class MoralTransformer(pl.LightningModule):
 
-    def __init__(self, seq_len=1024, n_intermediate=512, moral_vec_size=5):
+    def __init__(self, seq_len=128, moral_vec_size=5):
         super().__init__()
         self.seq_len = seq_len
         # self.tokenizer = BertTokenizerFast.from_pretrained('distilbert-base-uncased')
@@ -38,31 +38,35 @@ class MoralTransformer(pl.LightningModule):
         # Load pretrained model
         # self.pretrained = DistilBertModel.from_pretrained('distilbert-base-uncased').cuda()
         self.pretrained = BartModel.from_pretrained('facebook/bart-large-cnn')
+        self.encoder = self.pretrained.encoder
+        self.embedding = self.pretrained.shared
 
         # self.n_vocab = self.pretrained.embeddings.word_embeddings.num_embeddings
         # self.n_encoder_features = self.pretrained.transformer.layer[-1].output_layer_norm.normalized_shape[0]
-        self.n_vocab = self.pretrained.shared.num_embeddings
-        self.n_encoder_features = self.pretrained.encoder.layernorm_embedding.normalized_shape[0]
+        self.n_vocab = self.embedding.num_embeddings
+        self.n_encoder_features = self.encoder.layernorm_embedding.normalized_shape[0]
 
         # Linear layer to combine encodings and moral features
-        self.linear = nn.Linear(self.n_encoder_features + moral_vec_size, n_intermediate)
+        self.linear = nn.Linear(self.n_encoder_features + moral_vec_size, self.embedding.embedding_dim)
 
         # Decoder
-        decoder_layer = nn.TransformerDecoderLayer(d_model=n_intermediate, nhead=16, dim_feedforward=1024, dropout=0.1, activation='relu')
+        # decoder_layer = nn.TransformerDecoderLayer(d_model=self.embedding.embedding_dim, nhead=16, dim_feedforward=1024, dropout=0.1, activation='relu')
+        decoder_layer = nn.TransformerDecoderLayer(d_model=self.embedding.embedding_dim, nhead=16, dim_feedforward=1024, dropout=0.1, activation='relu')
         self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
-        self.decoder_head = nn.Linear(n_intermediate, self.n_vocab)
+        self.decoder_head = nn.Linear(self.embedding.embedding_dim, self.n_vocab)
 
     def forward(self, source, moral_target, generated):
         copied_morals = torch.unsqueeze(moral_target, 1).repeat(1, self.seq_len, 1)
 
         # encoded = self.pretrained(source).last_hidden_state
-        encoded = self.pretrained.encoder(source).last_hidden_state
+        encoded = self.encoder(source).last_hidden_state
         encoded = torch.cat((encoded, copied_morals), 2)
 
         encoded = self.linear(encoded)
 
-        decoded = self.decoder(generated, encoded)
-        
+        generated_embeddings = self.embedding(generated)
+        decoded = self.decoder(generated_embeddings, encoded)
+
         head = self.decoder_head(decoded)
         return head
 
@@ -71,7 +75,8 @@ class MoralTransformer(pl.LightningModule):
         results = []
         for token_set in tokens:
             converted = self.tokenizer.convert_ids_to_tokens(token_set)
-            results.append(converted)
+            sentence = ''.join(converted).replace('Ġ', ' ')
+            results.append(sentence)
         return results
 
 
@@ -95,21 +100,30 @@ class MoralTransformer(pl.LightningModule):
 
 if __name__ == '__main__':
     seq_len = 128
-    batch_size = 10
-    n_intermediate = 512
+    batch_size = 1
 
-    transformer = MoralTransformer(seq_len=seq_len, n_intermediate=n_intermediate).cuda()
+    transformer = MoralTransformer(seq_len=seq_len).cuda()
 
     source = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
     moral_target = torch.FloatTensor([[1,2,3,4,5]] * batch_size).cuda()
-    generated = torch.FloatTensor([[list(range(n_intermediate))] * seq_len] * batch_size).cuda()
+    # generated = torch.FloatTensor([[list(range(n_intermediate))] * seq_len] * batch_size).cuda()
+    generated = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
+    transformer.eval()
     outputs = transformer.forward(source, moral_target, generated)
+    for o in transformer.decode_to_tokens(outputs):
+        print(o)
 
+    transformer.train()
     loss = torch.sum(outputs)
     optimizer = torch.optim.Adam(params=transformer.parameters(), lr=0.01)
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
+
+    transformer.eval()
+    outputs = transformer.forward(source, moral_target, generated)
+    for o in transformer.decode_to_tokens(outputs):
+        print(o)
 
     # tokenized = transformer.tokenizer('trump biden electionk zx zc fzd vcx zx')['input_ids']
     # print(tokenized)

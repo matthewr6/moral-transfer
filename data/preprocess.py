@@ -19,6 +19,7 @@ from tokenizers.pre_tokenizers import Whitespace
 
 moral_foundations = sorted(MORAL_FOUNDATION_DICT.keys())
 print(moral_foundations, '\n')
+# ['AuthorityVice', 'AuthorityVirtue', 'FairnessVice', 'FairnessVirtue', 'HarmVice', 'HarmVirtue', 'IngroupVice', 'IngroupVirtue', 'MoralityGeneral', 'PurityVice', 'PurityVirtue']
 
 nela = NELAFeatureExtractor()
 extractor = nela.extract_moral

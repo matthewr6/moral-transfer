@@ -45,7 +45,7 @@ def tagme(input_file, output_file, token):
             if line_idx % 100 == 0:
                 # print('[{}] sleep for 1 minute'.format(line_idx))
                 # time.sleep(60)
-                print("Line number:" + line_idx)
+                print("Line number: " + line_idx)
 
 
 if __name__ == '__main__':

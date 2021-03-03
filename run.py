@@ -30,7 +30,6 @@ from collections import Counter
 class NewsDataset(Dataset):
     def __init__(self, data):
         self.data = data
-        self.unique_words = self.get_unique_words()
 
         labels = list(map(itemgetter('moral_features'), data))
         max_vals = [max(idx) for idx in zip(*labels)] 
@@ -40,10 +39,6 @@ class NewsDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
-
-    def get_unique_words(self):
-        words_to_counts = Counter(self.words)  # this is a dictionary
-        return sorted(words_to_counts, key=words_to_counts.get, reverse=True)
 
     def __getitem__(self, index):
         article = self.data[index]
@@ -61,7 +56,7 @@ class NewsDataset(Dataset):
 
 print("Start")
 # file = open('cnn_bart_encodings.pkl', 'rb')
-file = open('headlines_cnn_bart.pkl', 'rb')
+file = open('data/nela-covid-2020/combined/headlines_cnn_bart.pkl', 'rb')
 data = pickle.load(file)
 data = [d for d in data if sum(d['moral_features'])]
 file.close()
@@ -159,7 +154,7 @@ def validation(epoch):
             ids = data['ids'].to(device, dtype = torch.long)
             mask = data['mask'].to(device, dtype = torch.long)
             # token_type_ids = data['token_type_ids'].to(device, dtype = torch.long)
-            targets = data['targets'].to(device, dtype = torch.float)
+            targets = data['targets'].to(device, dtype = torch.int)
             outputs = model(ids, mask)
             fin_targets.extend(targets.cpu().detach().numpy().tolist())
             fin_outputs.extend(torch.sigmoid(outputs).cpu().detach().numpy().tolist())

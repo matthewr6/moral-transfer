@@ -24,8 +24,13 @@ from transformers import BartModel, BartConfig, DistilBertModel
 
 from transformers import BartForSequenceClassification, BartTokenizer
 from collections import Counter
+import torch.nn.functional as F
 
-
+def left_pad(arr, maxlen=128):
+    arr = np.array(arr)
+    arr = arr[arr != 0]
+    diff = maxlen - len(arr)
+    return ([0] * diff) + arr.tolist()
 
 class NewsDataset(Dataset):
     def __init__(self, data):
@@ -35,7 +40,7 @@ class NewsDataset(Dataset):
         labels = list(map(itemgetter('moral_features'), data))
         max_vals = [max(idx) for idx in zip(*labels)] 
         normalized_labels = [ [ val/max_vals[index] if max_vals[index] > 0 else val for index,val in enumerate(row)] for row in labels] # moral feature wise normalization
-        self.targets = [ [1 if i>= 0.5 else 0  for i in row] for row in normalized_labels]
+        self.targets = [ np.array([1 if i > 0 else 0 for i in row]) for row in normalized_labels]
 
 
     def __len__(self):
@@ -43,20 +48,16 @@ class NewsDataset(Dataset):
 
     def get_num_unique(self):
         ids = np.array([a['content'][0] for a in self.data]).flatten()
-        return ids.max()
+        return ids.max() + 1
 
     def __getitem__(self, index):
         article = self.data[index]
         ids = article['content'][0]
-        # mask = article['attention_mask']
-        # token_type_ids = article["token_type_ids"]
         targets = self.targets[index]
 
         return {
-            'ids': torch.tensor(ids, dtype=torch.long),
-            # 'mask': torch.tensor(mask, dtype=torch.long),
-            # 'token_type_ids': torch.tensor(token_type_ids, dtype=torch.long),
-            'targets': torch.tensor(targets, dtype=torch.float)
+            'ids': torch.tensor(left_pad(ids), dtype=torch.long),
+            'targets': torch.tensor(targets, dtype=torch.int)
         }
 
 print("Start")
@@ -77,9 +78,9 @@ test_size = len(dataset) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
 TRAIN_BATCH_SIZE = 32
-VALID_BATCH_SIZE = 32
+VALID_BATCH_SIZE = 512
 EPOCHS = 10
-LEARNING_RATE = 1e-05
+LEARNING_RATE = 1e-03#5
 train_params = {'batch_size': TRAIN_BATCH_SIZE,
                 'shuffle': True,
                 'num_workers': 0
@@ -98,14 +99,18 @@ print(len(training_loader))
 
 
 class MoralClassifier(torch.nn.Module):
-    def __init__(self, vocab_size, hidden_size=64, embedding_dim=128):
+    def __init__(self, vocab_size, hidden_size=4, embedding_dim=8):
         super(MoralClassifier, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.lstm = nn.LSTM(embedding_dim, hidden_size, batch_first=True)
+        self.dropout = nn.Dropout(0.2)
         self.linear = nn.Linear(hidden_size, 11)
+        self.linear1 = nn.Linear(hidden_size, hidden_size)
+        self.linear2 = nn.Linear(hidden_size, hidden_size)
 
     def forward(self, ids):
         x = self.embeddings(ids)
+        x = self.dropout(x)
         output, (h_n, c_n) = self.lstm(x)
         return self.linear(h_n[-1])
 
@@ -140,24 +145,29 @@ for epoch in range(EPOCHS):
 
 print("Training Done")
 
-def validation(epoch):
+def validation():
     model.eval()
     fin_targets=[]
     fin_outputs=[]
     with torch.no_grad():
-        for _, data in tqdm(enumerate(testing_loader, 0), "Testing: "):
+        for _, data in tqdm(enumerate(testing_loader), "Testing: "):
             ids = data['ids'].to(device, dtype = torch.long)
-            mask = data['mask'].to(device, dtype = torch.long)
+            # mask = data['mask'].to(device, dtype = torch.long)
             # token_type_ids = data['token_type_ids'].to(device, dtype = torch.long)
-            targets = data['targets'].to(device, dtype = torch.float)
-            outputs = model(ids, mask)
+            targets = data['targets'].to(device, dtype = torch.int)
+            outputs = model(ids)
             fin_targets.extend(targets.cpu().detach().numpy().tolist())
             fin_outputs.extend(torch.sigmoid(outputs).cpu().detach().numpy().tolist())
+    fin_outputs = np.array(fin_outputs)
+    fin_targets = np.array(fin_targets)
     return fin_outputs, fin_targets
 
 # validate
-outputs, targets = validation(epoch)
-outputs = np.array(outputs) >= 0.5
+outputs, targets = validation()
+print(outputs[:10])
+print(targets[:10])
+outputs[outputs >= 0.5] = 1
+outputs[outputs < 0.5] = 0
 accuracy = metrics.accuracy_score(targets, outputs)
 f1_score_micro = metrics.f1_score(targets, outputs, average='micro')
 f1_score_macro = metrics.f1_score(targets, outputs, average='macro')

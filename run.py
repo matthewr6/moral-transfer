@@ -34,7 +34,7 @@ class NewsDataset(Dataset):
         labels = list(map(itemgetter('moral_features'), data))
         max_vals = [max(idx) for idx in zip(*labels)] 
         normalized_labels = [ [ val/max_vals[index] if max_vals[index] > 0 else val for index,val in enumerate(row)] for row in labels] # moral feature wise normalization
-        self.targets = [ [1 if i>= 0.5 else 0  for i in row] for row in normalized_labels]
+        self.targets = [ np.array([1 if i > 0 else 0 for i in row]) for row in normalized_labels]
 
 
     def __len__(self):

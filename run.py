@@ -23,12 +23,15 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 from transformers import BartModel, BartConfig, DistilBertModel
 
 from transformers import BartForSequenceClassification, BartTokenizer
+from collections import Counter
 
 
 
 class NewsDataset(Dataset):
     def __init__(self, data):
         self.data = data
+        self.unique_words = self.get_unique_words()
+
         labels = list(map(itemgetter('moral_features'), data))
         max_vals = [max(idx) for idx in zip(*labels)] 
         normalized_labels = [ [ val/max_vals[index] if max_vals[index] > 0 else val for index,val in enumerate(row)] for row in labels] # moral feature wise normalization
@@ -37,6 +40,10 @@ class NewsDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
+
+    def get_unique_words(self):
+        words_to_counts = Counter(self.words)  # this is a dictionary
+        return sorted(words_to_counts, key=words_to_counts.get, reverse=True)
 
     def __getitem__(self, index):
         article = self.data[index]
@@ -53,21 +60,25 @@ class NewsDataset(Dataset):
         }
 
 print("Start")
-file = open('cnn_bart_encodings.pkl', 'rb')
+# file = open('cnn_bart_encodings.pkl', 'rb')
+file = open('headlines_cnn_bart.pkl', 'rb')
 data = pickle.load(file)
+data = [d for d in data if sum(d['moral_features'])]
 file.close()
 print("Data Loaded")
 
 # dummy to test pipeline
-dataset = NewsDataset(data[1:100])
+# dataset = NewsDataset(data[1:100])
+dataset = NewsDataset(data)
+
 
 train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-TRAIN_BATCH_SIZE = 2
-VALID_BATCH_SIZE = 4
-EPOCHS = 1
+TRAIN_BATCH_SIZE = 32
+VALID_BATCH_SIZE = 32
+EPOCHS = 10
 LEARNING_RATE = 1e-05
 train_params = {'batch_size': TRAIN_BATCH_SIZE,
                 'shuffle': True,
@@ -81,6 +92,9 @@ test_params = {'batch_size': VALID_BATCH_SIZE,
 
 training_loader = DataLoader(train_dataset, **train_params)
 testing_loader = DataLoader(test_dataset, **test_params)
+
+print("Training Examples: " + str(train_size))
+print(len(training_loader))
 
 
 class MoralClassifier(torch.nn.Module):
@@ -113,7 +127,7 @@ optimizer = torch.optim.Adam(params =  model.parameters(), lr=LEARNING_RATE)
 
 def train(epoch):
     model.train()
-    for _,data in enumerate(training_loader, 0):
+    for _,data in tqdm(enumerate(training_loader, 0), "Training: "):
         ids = data['ids'].to(device, dtype = torch.long)
         mask = data['mask'].to(device, dtype = torch.long)
         # token_type_ids = data['token_type_ids'].to(device, dtype = torch.long)
@@ -124,14 +138,14 @@ def train(epoch):
 
         optimizer.zero_grad()
         loss = loss_fn(outputs, targets)
-        if _%5000==0:
+        if _%len(training_loader)==0:
             print(f'Epoch: {epoch}, Loss:  {loss.item()}')
         
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-for epoch in tqdm(range(EPOCHS)):
+for epoch in range(EPOCHS):
     train(epoch)
 
 print("Training Done")
@@ -141,7 +155,7 @@ def validation(epoch):
     fin_targets=[]
     fin_outputs=[]
     with torch.no_grad():
-        for _, data in enumerate(testing_loader, 0):
+        for _, data in tqdm(enumerate(testing_loader, 0), "Testing: "):
             ids = data['ids'].to(device, dtype = torch.long)
             mask = data['mask'].to(device, dtype = torch.long)
             # token_type_ids = data['token_type_ids'].to(device, dtype = torch.long)
@@ -151,13 +165,12 @@ def validation(epoch):
             fin_outputs.extend(torch.sigmoid(outputs).cpu().detach().numpy().tolist())
     return fin_outputs, fin_targets
 
-
-for epoch in tqdm(range(EPOCHS)):
-    outputs, targets = validation(epoch)
-    outputs = np.array(outputs) >= 0.5
-    accuracy = metrics.accuracy_score(targets, outputs)
-    f1_score_micro = metrics.f1_score(targets, outputs, average='micro')
-    f1_score_macro = metrics.f1_score(targets, outputs, average='macro')
-    print(f"Accuracy Score = {accuracy}")
-    print(f"F1 Score (Micro) = {f1_score_micro}")
-    print(f"F1 Score (Macro) = {f1_score_macro}")
+# validate
+outputs, targets = validation(epoch)
+outputs = np.array(outputs) >= 0.5
+accuracy = metrics.accuracy_score(targets, outputs)
+f1_score_micro = metrics.f1_score(targets, outputs, average='micro')
+f1_score_macro = metrics.f1_score(targets, outputs, average='macro')
+print(f"Accuracy Score = {accuracy}")
+print(f"F1 Score (Micro) = {f1_score_micro}")
+print(f"F1 Score (Macro) = {f1_score_macro}")

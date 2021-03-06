@@ -16,6 +16,7 @@ targets = [np.array([1 if i > 0 else 0 for i in row]) for row in normalized_labe
 for line_idx in range(len(headlines)):
     label_vector = targets[line_idx]
     labels = ""
+    # AB,AG,FB,FG,HB,HG,IB,IG,MG,PB,PG
     for i in range(len(label_vector)):
         if label_vector[i] == 1:
             if i == 0:

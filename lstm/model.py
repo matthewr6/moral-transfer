@@ -115,63 +115,51 @@ class LSTM(nn.LSTM):
         return outputs, h
 
 
-class MoralClassifierMfdBk(nn.Module):
+class MoralClassifierExt(nn.Module):
     def __init__(self,
                  word_embedding,
                  lstm,
                  linears,
-                 el_linears,
-                 mfd_linears,
+                 ext_linears,
                  embed_dropout_prob=.5,
                  lstm_dropout_prob=.5,
                  el_dropout_prob=.5,
-                 mfd_dropout_prob=.5,
                  gpu=False):
-        super(MoralClassifierMfdBk, self).__init__()
+        super(MoralClassifierExt, self).__init__()
 
         self.word_embedding = word_embedding
         self.lstm = lstm
         self.linears = nn.ModuleList(linears)
-        self.el_linears = nn.ModuleList(el_linears)
-        self.mfd_linears = nn.ModuleList(mfd_linears)
+        self.ext_linears = nn.ModuleList(ext_linears)
         self.linear_num = len(linears)
-        self.el_linear_num = len(el_linears)
-        self.mfd_linear_num = len(mfd_linears)
+        self.ext_linear_num = len(ext_linears)
         self.embed_dropout = nn.Dropout(p=embed_dropout_prob)
         self.lstm_dropout = nn.Dropout(p=lstm_dropout_prob)
         self.el_dropout = nn.Dropout(p=el_dropout_prob)
-        self.mfd_dropout = nn.Dropout(p=mfd_dropout_prob)
         self.gpu = gpu
 
-    def forward(self, tokens, lens, els, mfds):
+    def forward(self, tokens, lens, exts):
         # TODO: add non-linear functions
         # embedding lookup
         tokens_embed = self.word_embedding.forward(tokens)
         tokens_embed = self.embed_dropout.forward(tokens_embed)
 
         # lstm layer
-        _lstm_outputs, (last_hidden, _last_cell) = self.lstm.forward(tokens_embed, lens)
+        _lstm_outputs, (last_hidden, _last_cell) = self.lstm.forward(
+            tokens_embed, lens)
         last_hidden = last_hidden.squeeze(0)
         last_hidden = self.lstm_dropout.forward(last_hidden)
 
-        # el linear layers
-        el_linear_input = els
-        for layer_idx, linear in enumerate(self.el_linears):
-            el_linear_input = linear.forward(el_linear_input)
-        el_linear_input = F.relu(el_linear_input)
-        el_linear_input = self.el_dropout.forward(el_linear_input)
-
-        # mfd linear layers
-        mfd_linear_input = mfds
-        for layer_idx, linear in enumerate(self.mfd_linears):
-            mfd_linear_input = linear.forward(mfd_linear_input)
-        mfd_linear_input = F.relu(mfd_linear_input)
-        mfd_linear_input = self.el_dropout.forward(mfd_linear_input)
+        # ext linear layers
+        ext_linear_input = exts
+        for layer_idx, linear in enumerate(self.ext_linears):
+            ext_linear_input = linear.forward(ext_linear_input)
+        ext_linear_input = F.relu(ext_linear_input)
+        ext_linear_input = self.el_dropout.forward(ext_linear_input)
 
         # linear layers
-        linear_input = torch.cat([last_hidden, el_linear_input, mfd_linear_input], dim=1)
+        linear_input = torch.cat([last_hidden, ext_linear_input], dim=1)
         for layer_idx, linear in enumerate(self.linears):
             linear_input = linear.forward(linear_input)
 
         return linear_input
-

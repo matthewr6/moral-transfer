@@ -124,14 +124,11 @@ class Dataset:
             batch_tids.append(tid)
             batch_tokens.append(tokens)
             batch_labels.append(label)
-        batch_lens, batch_tids, batch_tokens, batch_labels = zip(*sorted(zip(
-            batch_lens, batch_tids, batch_tokens, batch_labels), reverse=True))
+        batch_lens, batch_tids, batch_tokens, batch_labels = zip(*sorted(zip(batch_lens, batch_tids, batch_tokens, batch_labels), reverse=True))
 
         batch_lens = Variable(torch.LongTensor(batch_lens), volatile=volatile)
-        batch_tokens = Variable(torch.LongTensor(batch_tokens),
-                                volatile=volatile)
-        batch_labels = Variable(torch.LongTensor(batch_labels),
-                                volatile=volatile)
+        batch_tokens = Variable(torch.LongTensor(batch_tokens), volatile=volatile)
+        batch_labels = Variable(torch.LongTensor(batch_labels), volatile=volatile)
 
         if gpu:
             batch_lens = batch_lens.cuda()

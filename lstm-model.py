@@ -9,10 +9,10 @@ class Model(nn.LSTM):
     def __init__(self, dataset):
 
         self.input_size = 128
-        self.hidden_size = 128
+        self.hidden_size = 4
         self.num_layers = 3
         self.dropout = nn.Dropout(0.3)
-        self.embedding_dim = 128
+        self.embedding_dim = 8
 
         self.bias = True
         self.batch_first = False

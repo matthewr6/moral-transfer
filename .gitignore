@@ -3,3 +3,4 @@ data/nela-elections-2020/
 data/filtered_sources.txt
 .sftp-config.json
 *.pkl
+*.tsv

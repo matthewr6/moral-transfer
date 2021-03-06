@@ -1,4 +1,4 @@
-import os
+    import os
 import torch
 import numpy as np
 from torch import nn
@@ -68,7 +68,7 @@ class MoralTransformer(pl.LightningModule):
         decoded = self.decoder(generated_embeddings, encoded)
 
         head = self.decoder_head(decoded)
-        return head
+        return F.softmax(head)
 
     def decode_to_tokens(self, output):
         tokens = torch.argmax(output, 2).cpu().detach().numpy()

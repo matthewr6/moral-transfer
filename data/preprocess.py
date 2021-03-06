@@ -17,9 +17,9 @@ from tokenizers.models import BPE
 from tokenizers.trainers import BpeTrainer
 from tokenizers.pre_tokenizers import Whitespace
 
-moral_foundations = sorted(MORAL_FOUNDATION_DICT.keys())
-print(moral_foundations, '\n')
-# ['AuthorityVice', 'AuthorityVirtue', 'FairnessVice', 'FairnessVirtue', 'HarmVice', 'HarmVirtue', 'IngroupVice', 'IngroupVirtue', 'MoralityGeneral', 'PurityVice', 'PurityVirtue']
+moral_foundations = ['AuthorityVice', 'AuthorityVirtue', 'FairnessVice', 'FairnessVirtue', 'HarmVice', 'HarmVirtue', 'IngroupVice', 'IngroupVirtue', 'PurityVice', 'PurityVirtue']
+
+# subversion authority cheating fairness harm care betrayal loyalty degradation purity
 
 nela = NELAFeatureExtractor()
 extractor = nela.extract_moral
@@ -31,6 +31,9 @@ def handle_content_moral_features(article):
         return None
     feature_dict = dict(zip(feature_names, feature_vector))
     moral_features = [feature_dict[feature_name] for feature_name in moral_foundations]
+    moral_features = [1 if v > 0 else 0 for v in moral_features]
+    if sum(moral_features) == 0:
+        return None
     return {
         'content': article['title'],
         'moral_features': moral_features
@@ -47,6 +50,9 @@ def handle_headline_moral_features(article):
         return None
     feature_dict = dict(zip(feature_names, feature_vector))
     moral_features = [feature_dict[feature_name] for feature_name in moral_foundations]
+    moral_features = [1 if v > 0 else 0 for v in moral_features]
+    if sum(moral_features) == 0:
+        return None
     return {
         'content': article['title'],
         'moral_features': moral_features
@@ -161,21 +167,21 @@ preprocessing_steps = [
         'out': 'headlines_manual'
     },
 
-    {
-        'in': 'unprocessed',
-        'method': add_content_moral_features,
-        'out': 'headlines_contentmorals'
-    },
-    {
-        'in': 'headlines',
-        'method': short_cnn_bart_encoding,
-        'out': 'headlines_contentmorals_cnn_bart'
-    },
-    {
-        'in': 'headlines',
-        'method': manual_preprocessing,
-        'out': 'headlines_contentmorals_manual'
-    },
+    # {
+    #     'in': 'unprocessed',
+    #     'method': add_content_moral_features,
+    #     'out': 'headlines_contentmorals'
+    # },
+    # {
+    #     'in': 'headlines',
+    #     'method': short_cnn_bart_encoding,
+    #     'out': 'headlines_contentmorals_cnn_bart'
+    # },
+    # {
+    #     'in': 'headlines',
+    #     'method': manual_preprocessing,
+    #     'out': 'headlines_contentmorals_manual'
+    # },
 ]
 
 for step in preprocessing_steps:

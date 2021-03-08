@@ -55,17 +55,17 @@ class MoralTransformer(pl.LightningModule):
         self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
         self.decoder_head = nn.Linear(self.embedding.embedding_dim, self.n_vocab)
 
-    def forward(self, source, moral_target, generated):
+    def forward(self, source, source_mask, moral_target, generated, generated_mask):
         copied_morals = torch.unsqueeze(moral_target, 1).repeat(1, self.seq_len, 1)
 
         # encoded = self.pretrained(source).last_hidden_state
-        encoded = self.encoder(source).last_hidden_state
+        encoded = self.encoder(source, source_mask).last_hidden_state
         encoded = torch.cat((encoded, copied_morals), 2)
 
         encoded = self.linear(encoded)
 
         generated_embeddings = self.embedding(generated)
-        decoded = self.decoder(generated_embeddings, encoded)
+        decoded = self.decoder(generated_embeddings, encoded, generated_mask, source_mask)
 
         head = self.decoder_head(decoded)
         return F.softmax(head)
@@ -106,7 +106,6 @@ if __name__ == '__main__':
 
     source = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
     moral_target = torch.FloatTensor([[1,2,3,4,5]] * batch_size).cuda()
-    # generated = torch.FloatTensor([[list(range(n_intermediate))] * seq_len] * batch_size).cuda()
     generated = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
     transformer.eval()
     outputs = transformer.forward(source, moral_target, generated)

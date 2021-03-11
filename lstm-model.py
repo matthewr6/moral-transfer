@@ -18,14 +18,9 @@ class Model(nn.LSTM):
         self.batch_first = False
         self.bidirectional = True
 
-        super(Model, self).__init__(input_size=self.input_size,
-                                    hidden_size=self.hidden_size,
-                                    num_layers=self.num_layers,
-                                    bias=self.bias,
-                                    batch_first=self.batch_first,
-                                    dropout=self.dropout,
-                                    bidirectional=self.bidirectional,
-                                    )
+        super(Model, self).__init__(input_size=self.input_size, hidden_size=self.hidden_size,
+                                    num_layers=self.num_layers, bias=self.bias, batch_first=self.batch_first,
+                                    dropout=self.dropout, bidirectional=self.bidirectional)
 
         vocab_len = len(dataset.unique_words)
         self.embeddings = nn.Embedding(vocab_len, self.embedding_dim, padding_idx=0)

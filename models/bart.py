@@ -39,8 +39,8 @@ class MoralClassifier(pl.LightningModule):
         self.hparams = args
         self.l1 = BartModel.from_pretrained('facebook/bart-large-cnn')
         # freeze bert weights
-        for param in self.l1.parameters():
-            param.requires_grad = False        
+        # for param in self.l1.parameters():
+        #     param.requires_grad = False        
         # Pooler
         self.l2 = torch.nn.Linear(1024, 1024)
         self.act = torch.nn.Tanh()

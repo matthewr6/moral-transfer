@@ -29,7 +29,7 @@ from transformers import BartTokenizerFast, BertTokenizerFast
 # Stacks moral vector with encoded representation, prior to decoder.
 class MoralTransformer(pl.LightningModule):
 
-    def __init__(self, seq_len=128, moral_vec_size=5):
+    def __init__(self, seq_len=128, moral_vec_size=5, discriminator=None):
         super().__init__()
         self.seq_len = seq_len
         self.tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
@@ -38,6 +38,8 @@ class MoralTransformer(pl.LightningModule):
         self.pretrained = BartModel.from_pretrained('facebook/bart-large-cnn')
         self.encoder = self.pretrained.encoder
         self.embedding = self.pretrained.shared
+        self.encoder.requires_grad = False
+        self.embedding.requires_grad = False
 
         self.n_vocab = self.embedding.num_embeddings
         self.n_encoder_features = self.encoder.layernorm_embedding.normalized_shape[0]
@@ -50,13 +52,12 @@ class MoralTransformer(pl.LightningModule):
         self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
         self.decoder_head = nn.Linear(self.embedding.embedding_dim, self.n_vocab)
 
-    # def forward(self, source, source_mask, moral_target, generated, generated_mask):
+        self.discriminator = discriminator
+
     def forward(self, X)
         source = X[0]
-        # source_mask = X[1]
         moral_target = X[1]
         generated = X[2]
-        # generated_mask = X[4]
         
         copied_morals = torch.unsqueeze(moral_target, 1).repeat(1, self.seq_len, 1)
 

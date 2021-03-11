@@ -100,7 +100,7 @@ class MoralClassifier(pl.LightningModule):
             'f1-macro': f1_score_macro
             }
         
-        self.log('val_loss', avg_loss, **stats)
+        self.log('val_loss', avg_loss)
         print(stats)
         return {**stats}
 
@@ -137,7 +137,7 @@ class MoralClassifier(pl.LightningModule):
             'f1-macro': f1_score_macro
             }
 
-        self.log('test_loss', avg_loss, **stats)
+        self.log('test_loss', avg_loss)
         print(stats)
         return {**stats}
 

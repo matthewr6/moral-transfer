@@ -84,6 +84,7 @@ class MoralClassifier(pl.LightningModule):
         return {**metrics}
     
     def validation_end(self, outputs):
+        import pdb; pdb.set_trace();
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         y = torch.cat([x['y'] for x in outputs])
         y_preds = torch.cat([x['y_preds'] for x in outputs])

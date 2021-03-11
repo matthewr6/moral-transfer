@@ -83,7 +83,7 @@ class MoralClassifier(pl.LightningModule):
         self.log('val_loss', loss)
         return {**metrics}
     
-    def validation_end(self, outputs):
+    def validation_epoch_end(self, outputs):
         import pdb; pdb.set_trace();
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         y = torch.cat([x['y'] for x in outputs])
@@ -121,7 +121,7 @@ class MoralClassifier(pl.LightningModule):
         self.log('test_loss', loss)
         return {**metrics}
     
-    def test_end(self, outputs):
+    def test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         y = torch.cat([x['y'] for x in outputs])
         y_preds = torch.cat([x['y_preds'] for x in outputs])

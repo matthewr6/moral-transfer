@@ -29,20 +29,18 @@ from transformers import BartTokenizerFast, BertTokenizerFast
 # Stacks moral vector with encoded representation, prior to decoder.
 class MoralTransformer(pl.LightningModule):
 
-    def __init__(self, seq_len=128, moral_vec_size=5):
+    def __init__(self, seq_len=128, moral_vec_size=5, discriminator=None):
         super().__init__()
         self.seq_len = seq_len
-        # self.tokenizer = BertTokenizerFast.from_pretrained('distilbert-base-uncased')
         self.tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
 
         # Load pretrained model
-        # self.pretrained = DistilBertModel.from_pretrained('distilbert-base-uncased').cuda()
         self.pretrained = BartModel.from_pretrained('facebook/bart-large-cnn')
         self.encoder = self.pretrained.encoder
         self.embedding = self.pretrained.shared
+        self.encoder.requires_grad = False
+        self.embedding.requires_grad = False
 
-        # self.n_vocab = self.pretrained.embeddings.word_embeddings.num_embeddings
-        # self.n_encoder_features = self.pretrained.transformer.layer[-1].output_layer_norm.normalized_shape[0]
         self.n_vocab = self.embedding.num_embeddings
         self.n_encoder_features = self.encoder.layernorm_embedding.normalized_shape[0]
 
@@ -50,15 +48,19 @@ class MoralTransformer(pl.LightningModule):
         self.linear = nn.Linear(self.n_encoder_features + moral_vec_size, self.embedding.embedding_dim)
 
         # Decoder
-        # decoder_layer = nn.TransformerDecoderLayer(d_model=self.embedding.embedding_dim, nhead=16, dim_feedforward=1024, dropout=0.1, activation='relu')
         decoder_layer = nn.TransformerDecoderLayer(d_model=self.embedding.embedding_dim, nhead=16, dim_feedforward=1024, dropout=0.1, activation='relu')
         self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
         self.decoder_head = nn.Linear(self.embedding.embedding_dim, self.n_vocab)
 
-    def forward(self, source, source_mask, moral_target, generated, generated_mask):
+        self.discriminator = discriminator
+
+    def forward(self, X)
+        source = X[0]
+        moral_target = X[1]
+        generated = X[2]
+        
         copied_morals = torch.unsqueeze(moral_target, 1).repeat(1, self.seq_len, 1)
 
-        # encoded = self.pretrained(source).last_hidden_state
         encoded = self.encoder(source, source_mask).last_hidden_state
         encoded = torch.cat((encoded, copied_morals), 2)
 
@@ -70,17 +72,10 @@ class MoralTransformer(pl.LightningModule):
         head = self.decoder_head(decoded)
         return F.softmax(head)
 
-    def decode_to_tokens(self, output):
-        tokens = torch.argmax(output, 2).cpu().detach().numpy()
-        results = []
-        for token_set in tokens:
-            converted = self.tokenizer.convert_ids_to_tokens(token_set)
-            sentence = ''.join(converted).replace('Ġ', ' ')
-            results.append(sentence)
-        return results
-
-
     def training_step(self, batch, batch_idx):
+        X_initial, X_cyclic, y = batch
+        intermediate_out = self(X_initial) # calculate discriminator loss
+        cyclic_out = self(X_cyclic) # calculate MMI
         return
         # training_step defined the train loop.
         # It is independent of forward
@@ -97,6 +92,15 @@ class MoralTransformer(pl.LightningModule):
         return
         # optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         # return optimizer
+
+    def decode_to_tokens(self, output):
+        tokens = torch.argmax(output, 2).cpu().detach().numpy()
+        results = []
+        for token_set in tokens:
+            converted = self.tokenizer.convert_ids_to_tokens(token_set)
+            sentence = ''.join(converted).replace('Ġ', ' ')
+            results.append(sentence)
+        return results
 
 if __name__ == '__main__':
     seq_len = 128

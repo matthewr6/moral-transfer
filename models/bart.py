@@ -38,6 +38,7 @@ class MoralClassifier(pl.LightningModule):
         super(MoralClassifier, self).__init__()
         self.hparams = args
         self.l1 = BartModel.from_pretrained('facebook/bart-large-cnn')
+        self.l1.requires_grad = False
         # Pooler
         self.l2 = torch.nn.Linear(1024, 1024)
         self.act = torch.nn.Tanh()

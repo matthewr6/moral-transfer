@@ -42,7 +42,9 @@ model = MoralClassifier(hparams)
 # model = model.to(device)
 early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
 checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", "test", "checkpoints"), save_top_k=1, monitor='val_loss', mode='min')
-trainer = Trainer(max_epochs=20, 
+trainer = Trainer(gpus=2, 
+                  distributed_backend='dp',
+                  max_epochs=20, 
                   callbacks=[early_stop_callback, checkpoint_callback],
                   )
                      

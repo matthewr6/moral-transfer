@@ -17,10 +17,11 @@ PADDING_TOK = 1
 
 # Generators give single epoch of data.
 
+# Training data for discriminator model.
 # Output format:
-# X: [source sequence, source mask, target morals, generated sequence, generated mask]
-# y: [output sequence, dicriminato output]
-def moral_features_generator(batch_size=1):
+# X: [source sequence] (no source mask)
+# y: [1, ...moral features]
+def partial_sequence_generator(batch_size=1):
     training_data = data['train'].copy()
     random.shuffle(training_data)
     i = 0
@@ -44,23 +45,93 @@ def moral_features_generator(batch_size=1):
             generated_mask[:sample_seq_len] = UNMASK
             generated_mask[sample_seq_len:] = MASK
 
-            # Partial seq with next token
-            output_seq = input_seq.copy()
-            output_seq[sample_seq_len + 1:] = PADDING_TOK
-
             X.append([
                 input_seq.tolist(),
-                input_mask.tolist(),
-                target_morals,
-                input_seq.tolist(), # can reuse due to attention masking!
-                generated_mask.tolist()
+                # generated_mask.tolist()
+            ])
+            y.append([1] + target_morals)
+            i += 1
+        yield X, y
+
+
+# Training data for generator model in one direction.
+# Output format:
+# X: [source sequence, original morals, empty sequence (as generated seq)]
+# y: [source sequence, [1] + original morals]
+def identity_moral_features_generator(batch_size=1):
+    training_data = data['train'].copy()
+    random.shuffle(training_data)
+    i = 0
+    N = len(training_data)
+    while i < N:
+        X = []
+        y = []
+        next_batch_size = min(batch_size, N - i)
+        for j in range(next_batch_size):
+            article = training_data[i]
+            input_seq = article['content']
+            input_mask = article['attention_mask']
+            original_morals = article['moral_features']
+            generated_seq = [PADDING_TOK] * len(input_seq)
+
+            X.append([
+                input_seq,
+                original_morals,
+                generated_seq
             ])
             y.append([
-                output_seq.tolist(),
-                [1] + target_morals, # include discriminator prediction
+                input_seq,
+                [1] + original_morals, # include discriminator prediction
             ])
             i += 1
         yield X, y
+
+def gen_new_morals(moral_features):
+    return moral_features
+
+# Training data for generator model.
+# Output format:
+# X_initial: [source sequence, target morals, empty seq (as generated seq)]
+# X_cyclic: [original morals, empty seq (as generated seq)]
+# y: [source sequence, [1] + orignal morals]
+# The process is auto-regressive in the sense that previously generated tokens are fed into the decoder to generate the next token
+# in forward direction, pass in input sequence and target morals, autoregressively get output sequence
+# in backward direction, use output sequence + oiginal morals, autoregressively get "orginal" seq
+# use "original" seq for classifier
+def cyclic_moral_features_generator(batch_size=1):
+    training_data = data['train'].copy()
+    random.shuffle(training_data)
+    i = 0
+    N = len(training_data)
+    while i < N:
+        X_initial = []
+        X_cyclic = []
+        y = []
+        next_batch_size = min(batch_size, N - i)
+        for j in range(next_batch_size):
+            article = training_data[i]
+
+            # Get data
+            input_seq = article['content']
+            input_mask = article['attention_mask']
+            original_morals = article['moral_features']
+            new_morals = gen_new_morals(original_morals)
+
+            X_initial.append([
+                input_seq,
+                new_morals,
+                [PADDING_TOK] * len(input_seq),
+            ])
+            X_cyclic.append([
+                cyclic_morals,
+                [PADDING_TOK] * len(input_seq),
+            ])
+            y.append([
+                input_seq,
+                [1] + original_morals, # include discriminator prediction
+            ])
+            i += 1
+        yield X_initial, X_cyclic, y
 
 if __name__ == '__main__':
     generator = moral_features_generator(batch_size=100)

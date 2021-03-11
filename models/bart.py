@@ -90,9 +90,9 @@ class MoralClassifier(pl.LightningModule):
         y_preds = torch.cat([x['y_preds'] for x in outputs])
         y_hat = torch.cat([x['y_hat'] for x in outputs])
 
-        accuracy = metrics.accuracy_score(y, y_preds)
-        f1_score_micro = metrics.f1_score(y, y_preds, average='micro')
-        f1_score_macro = metrics.f1_score(y, y_preds, average='macro')
+        accuracy = metrics.accuracy_score(y.cpu(), y_preds.cpu())
+        f1_score_micro = metrics.f1_score(y.cpu(), y_preds.cpu(), average='micro')
+        f1_score_macro = metrics.f1_score(y.cpu(), y_preds.cpu(), average='macro')
         
         stats = {
             'acc': accuracy,
@@ -127,9 +127,9 @@ class MoralClassifier(pl.LightningModule):
         y_preds = torch.cat([x['y_preds'] for x in outputs])
         y_hat = torch.cat([x['y_hat'] for x in outputs])
 
-        accuracy = metrics.accuracy_score(y, y_preds)
-        f1_score_micro = metrics.f1_score(y, y_preds, average='micro')
-        f1_score_macro = metrics.f1_score(y, y_preds, average='macro')
+        accuracy = metrics.accuracy_score(y.cpu(), y_preds.cpu())
+        f1_score_micro = metrics.f1_score(y.cpu(), y_preds.cpu(), average='micro')
+        f1_score_macro = metrics.f1_score(y.cpu(), y_preds.cpu(), average='macro')
 
         stats = {
             'acc': accuracy,

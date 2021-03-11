@@ -15,7 +15,7 @@ from models import MoralClassifier
 from data import NewsDataset
 import torch
 
-device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
+# device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
 print("Start")
 file = open('headlines_cnn_bart_split.pkl', 'rb')
@@ -39,9 +39,9 @@ test_loader = DataLoader(test_dataset, batch_size=32, num_workers=4)
 LEARNING_RATE = 1e-5
 hparams = {'lr': LEARNING_RATE}
 model = MoralClassifier(hparams)
-model = model.to(device)
+# model = model.to(device)
 early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
-checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", "test", 'checkpoints'), save_top_k=1, monitor='val_loss', mode='min')
+checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", "test", "checkpoints"), save_top_k=1, monitor='val_loss', mode='min')
 trainer = Trainer(max_epochs=20, 
                   callbacks=[early_stop_callback, checkpoint_callback],
                   )

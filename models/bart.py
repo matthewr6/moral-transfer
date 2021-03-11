@@ -56,18 +56,18 @@ class MoralClassifier(pl.LightningModule):
         return output
     
     def training_step(self, batch, batch_nb):
-        ids = batch['ids'].to(device, dtype = torch.long)
-        mask = batch['mask'].to(device, dtype = torch.long)
-        y = batch['targets'].to(device, dtype = torch.float)
+        ids = batch['ids']
+        mask = batch['mask']
+        y = batch['targets']
         y_hat = self.forward(ids, mask)
         loss = self.loss_fn(y_hat, y)
         self.log('train_loss', loss)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_nb):
-        ids = batch['ids'].to(device, dtype = torch.long)
-        mask = batch['mask'].to(device, dtype = torch.long)
-        y = batch['targets'].to(device, dtype = torch.float)
+        ids = batch['ids']
+        mask = batch['mask']
+        y = batch['targets']
         y_hat = self.forward(ids, mask)
         loss = self.loss_fn(y_hat, y)
         y_preds = (y_hat >= 0).int()  
@@ -102,9 +102,9 @@ class MoralClassifier(pl.LightningModule):
 
 
     def test_step(self, batch, batch_nb):
-        ids = batch['ids'].to(device, dtype = torch.long)
-        mask = batch['mask'].to(device, dtype = torch.long)
-        y = batch['targets'].to(device, dtype = torch.float)
+        ids = batch['ids']
+        mask = batch['mask']
+        y = batch['targets']
         y_hat = self.forward(ids, mask)
         loss = self.loss_fn(y_hat, y)
         y_preds = (y_hat >= 0).int()  

@@ -5,3 +5,4 @@ data/filtered_sources.txt
 *.pkl
 lightning_logs/
 experiments/
+*.tsv

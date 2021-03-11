@@ -26,7 +26,6 @@ from transformers import BartForSequenceClassification, BartTokenizer
 from collections import Counter
 
 
-
 class NewsDataset(Dataset):
     def __init__(self, data):
         self.data = data
@@ -35,7 +34,6 @@ class NewsDataset(Dataset):
         max_vals = [max(idx) for idx in zip(*labels)] 
         normalized_labels = [ [ val/max_vals[index] if max_vals[index] > 0 else val for index,val in enumerate(row)] for row in labels] # moral feature wise normalization
         self.targets = [ np.array([1 if i > 0 else 0 for i in row]) for row in normalized_labels]
-
 
     def __len__(self):
         return len(self.data)
@@ -53,6 +51,7 @@ class NewsDataset(Dataset):
             # 'token_type_ids': torch.tensor(token_type_ids, dtype=torch.long),
             'targets': torch.tensor(targets, dtype=torch.float)
         }
+
 
 print("Start")
 # file = open('cnn_bart_encodings.pkl', 'rb')
@@ -116,9 +115,13 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 model = MoralClassifier()
 model = model.to(device)
 
+
 def loss_fn(outputs, targets):
     return torch.nn.BCEWithLogitsLoss()(outputs, targets)
+
+
 optimizer = torch.optim.Adam(params =  model.parameters(), lr=LEARNING_RATE)
+
 
 def train(epoch):
     model.train()
@@ -140,10 +143,12 @@ def train(epoch):
         loss.backward()
         optimizer.step()
 
+
 for epoch in range(EPOCHS):
     train(epoch)
 
 print("Training Done")
+
 
 def validation(epoch):
     model.eval()
@@ -159,6 +164,7 @@ def validation(epoch):
             fin_targets.extend(targets.cpu().detach().numpy().tolist())
             fin_outputs.extend(torch.sigmoid(outputs).cpu().detach().numpy().tolist())
     return fin_outputs, fin_targets
+
 
 # validate
 outputs, targets = validation(epoch)

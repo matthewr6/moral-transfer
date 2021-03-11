@@ -12,7 +12,7 @@ UNMASK = 1
 MASK = 0
 
 START_TOK = 0
-END_TOK = 0
+END_TOK = 2
 PADDING_TOK = 1
 
 # Generators give single epoch of data.
@@ -49,7 +49,8 @@ def partial_sequence_generator(batch_size=1):
                 input_seq.tolist(),
                 # generated_mask.tolist()
             ])
-            y.append([1] + target_morals)
+            # y.append([1] + target_morals)
+            y.append(target_morals)
             i += 1
         yield X, y
 
@@ -81,7 +82,8 @@ def identity_moral_features_generator(batch_size=1):
             ])
             y.append([
                 input_seq,
-                [1] + original_morals, # include discriminator prediction
+                original_morals,
+                # [1] + original_morals, # include discriminator prediction
             ])
             i += 1
         yield X, y
@@ -104,8 +106,9 @@ def cyclic_moral_features_generator(batch_size=1):
     i = 0
     N = len(training_data)
     while i < N:
-        X_initial = []
-        X_cyclic = []
+        input_seqs = []
+        new_morals = []
+        original_morals = []
         y = []
         next_batch_size = min(batch_size, N - i)
         for j in range(next_batch_size):
@@ -114,22 +117,14 @@ def cyclic_moral_features_generator(batch_size=1):
             # Get data
             input_seq = article['content']
             input_mask = article['attention_mask']
-            original_morals = article['moral_features']
-            new_morals = gen_new_morals(original_morals)
+            original_moral = article['moral_features']
+            new_moral = gen_new_morals(original_morals)
 
-            X_initial.append([
-                input_seq,
-                new_morals,
-                [PADDING_TOK] * len(input_seq),
-            ])
-            X_cyclic.append([
-                cyclic_morals,
-                [PADDING_TOK] * len(input_seq),
-            ])
-            y.append([
-                input_seq,
-                [1] + original_morals, # include discriminator prediction
-            ])
+            input_seqs.append(input_seq)
+            new_morals.append(new_moral)
+            original_morals.append(original_moral)
+            y.append(original_morals)
+            # y.append([1] + original_morals)
             i += 1
         yield X_initial, X_cyclic, y
 

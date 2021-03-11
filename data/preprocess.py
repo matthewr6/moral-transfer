@@ -85,7 +85,7 @@ def short_cnn_bart_encoding(data):
 def distilbert_encoding(data):
     tokenizer = BertTokenizerFast.from_pretrained('distilbert-base-uncased')
     texts = [a['content'] for a in data]
-    encodings = tokenizer(texts, truncation=True, max_length=512, padding=True, return_attention_mask=True, return_token_type_ids=True)
+    encodings = tokenizer(texts, truncation=True, max_length=64, padding=True, return_attention_mask=True, return_token_type_ids=True)
     for idx, article in enumerate(tqdm(data)):
         article['content'] = encodings.data['input_ids'][idx]
         article['attention_mask'] = encodings.data['attention_mask'][idx]
@@ -147,8 +147,8 @@ def apply_preprocessing(infile, method, outfile):
         pickle.dump(preprocessed, f, pickle.HIGHEST_PROTOCOL)
     print('')
 
-source = 'nela-elections-2020/combined'
-# source = 'nela-covid-2020/combined'
+# source = 'nela-elections-2020/combined'
+source = 'nela-covid-2020/combined'
 
 preprocessing_steps = [
     {
@@ -160,6 +160,11 @@ preprocessing_steps = [
         'in': 'headlines',
         'method': short_cnn_bart_encoding,
         'out': 'headlines_cnn_bart'
+    },
+    {
+        'in': 'headlines',
+        'method': distilbert_encoding,
+        'out': 'headlines_distilbert'
     },
     {
         'in': 'headlines',

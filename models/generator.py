@@ -1,5 +1,7 @@
 import os
+import time
 import torch
+from tqdm import tqdm
 import numpy as np
 from torch import nn
 import torch.nn.functional as F
@@ -11,20 +13,13 @@ import pytorch_lightning as pl
 from transformers import DistilBertModel, BartModel
 from transformers import BartTokenizerFast, BertTokenizerFast
 
-# Inputs:
-#   - input sequence (to encoder)
-#   - currently generated text (to decoder)
-#   - moral vector (to decoder)
-# Outputs:
-#   - next word
-# https://machinelearningmastery.com/encoder-decoder-attention-sequence-to-sequence-prediction-keras/
-# context vector concat with moral vector as input to decoder transformer
-# https://pytorch.org/tutorials/beginner/transformer_tutorial.html#define-the-model
-# stack https://pytorch.org/docs/stable/generated/torch.nn.TransformerDecoder.html after BERT
-# https://medium.com/@max_garber/simple-keras-transformer-model-74724a83bb83 --> include encoder outputs at every decoder level --> could include moral vector to
-# https://medium.com/inside-machine-learning/what-is-a-transformer-d07dd1fbec04
-# https://towardsdatascience.com/how-to-code-the-transformer-in-pytorch-24db27c8f9ec
-# https://github.com/jayparks/transformer/blob/master/transformer/models.py
+from bart import MoralClassifier
+
+# https://arxiv.org/pdf/1903.06353.pdf
+
+START_TOK = 0
+PADDING_TOK = 1
+MASK_TOK = 3 # is this correct?
 
 # Stacks moral vector with encoded representation, prior to decoder.
 class MoralTransformer(pl.LightningModule):
@@ -36,10 +31,10 @@ class MoralTransformer(pl.LightningModule):
 
         # Load pretrained model
         self.pretrained = BartModel.from_pretrained('facebook/bart-large-cnn')
+
         self.encoder = self.pretrained.encoder
-        self.embedding = self.pretrained.shared
         self.encoder.requires_grad = False
-        self.embedding.requires_grad = False
+        self.embedding = self.pretrained.shared
 
         self.n_vocab = self.embedding.num_embeddings
         self.n_encoder_features = self.encoder.layernorm_embedding.normalized_shape[0]
@@ -52,30 +47,35 @@ class MoralTransformer(pl.LightningModule):
         self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
         self.decoder_head = nn.Linear(self.embedding.embedding_dim, self.n_vocab)
 
-        self.discriminator = discriminator
+        # self.discriminator = discriminator
 
-    def forward(self, X)
-        source = X[0]
-        moral_target = X[1]
-        generated = X[2]
+        # checkpoint = torch.load('../saved_models/classifier_frozen_encoder_lr_1e-4.ckpt')
+        self.discriminator = MoralClassifier.load_from_checkpoint('../saved_models/classifier_frozen_encoder_lr_1e-4.ckpt')
+        # self.discriminator.load_state_dict(checkpoint['state_dict'])
+
+    def forward(self, input_seqs, moral_targets, generated_seqs): # create genrated seqs and mask instead to just mask everything??
         
-        copied_morals = torch.unsqueeze(moral_target, 1).repeat(1, self.seq_len, 1)
+        copied_morals = torch.unsqueeze(moral_targets, 1).repeat(1, self.seq_len, 1)
 
-        encoded = self.encoder(source, source_mask).last_hidden_state
+        encoded = self.encoder(input_seqs).last_hidden_state
         encoded = torch.cat((encoded, copied_morals), 2)
 
         encoded = self.linear(encoded)
 
-        generated_embeddings = self.embedding(generated)
-        decoded = self.decoder(generated_embeddings, encoded, generated_mask, source_mask)
+        generated_embeddings = self.embedding(generated_seqs)
+        decoded = self.decoder(generated_embeddings, encoded)
 
         head = self.decoder_head(decoded)
-        return F.softmax(head)
+        return F.softmax(head, dim=-1)
 
     def training_step(self, batch, batch_idx):
-        X_initial, X_cyclic, y = batch
-        intermediate_out = self(X_initial) # calculate discriminator loss
-        cyclic_out = self(X_cyclic) # calculate MMI
+        input_seqs, new_morals, original_morals, y = batch
+        intermediate_outs = self(input_seqs, new_morals) # for discriminator/BERTSCORE
+        cyclic_outs = self(intermediate_out, original_morals) # for MMI?
+
+        # TODO:
+        # MMI between cyclic and input sequences
+        # discriminator loss from intermediate_outs
         return
         # training_step defined the train loop.
         # It is independent of forward
@@ -89,9 +89,8 @@ class MoralTransformer(pl.LightningModule):
         # return loss
 
     def configure_optimizers(self):
-        return
-        # optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        # return optimizer
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
+        return optimizer
 
     def decode_to_tokens(self, output):
         tokens = torch.argmax(output, 2).cpu().detach().numpy()
@@ -104,29 +103,40 @@ class MoralTransformer(pl.LightningModule):
 
 if __name__ == '__main__':
     seq_len = 128
-    batch_size = 1
+    batch_size = 16
 
     transformer = MoralTransformer(seq_len=seq_len).cuda()
 
-    source = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
-    moral_target = torch.FloatTensor([[1,2,3,4,5]] * batch_size).cuda()
-    generated = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
-    transformer.eval()
-    outputs = transformer.forward(source, moral_target, generated)
-    for o in transformer.decode_to_tokens(outputs):
-        print(o)
+    input_seqs = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
+    moral_targets = torch.FloatTensor([[1,2,3,4,5]] * batch_size).cuda()
+    generated_seqs = torch.LongTensor([[1] * seq_len] * batch_size).cuda()
 
-    transformer.train()
-    loss = torch.sum(outputs)
-    optimizer = torch.optim.Adam(params=transformer.parameters(), lr=0.01)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+    now = time.time()
+    out_seqs = transformer(input_seqs, moral_targets, generated_seqs)
+    elapsed = time.time() - now
 
-    transformer.eval()
-    outputs = transformer.forward(source, moral_target, generated)
-    for o in transformer.decode_to_tokens(outputs):
-        print(o)
+    est_train_samples = 44000
+    seconds_in_hour = 60 * 60
+    est_seconds_per_epoch = (est_train_samples / batch_size) * elapsed
+
+    print('~{} secs/epoch'.format(round(est_seconds_per_epoch)))
+
+    # transformer.eval()
+    # outputs = transformer.forward(source, moral_target, generated)
+    # for o in transformer.decode_to_tokens(outputs):
+    #     print(o)
+
+    # transformer.train()
+    # loss = torch.sum(outputs)
+    # optimizer = torch.optim.Adam(params=transformer.parameters(), lr=0.01)
+    # optimizer.zero_grad()
+    # loss.backward()
+    # optimizer.step()
+
+    # transformer.eval()
+    # outputs = transformer.forward(source, moral_target, generated)
+    # for o in transformer.decode_to_tokens(outputs):
+    #     print(o)
 
     # tokenized = transformer.tokenizer('trump biden electionk zx zc fzd vcx zx')['input_ids']
     # print(tokenized)

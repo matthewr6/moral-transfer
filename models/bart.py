@@ -84,6 +84,7 @@ class MoralClassifier(pl.LightningModule):
         return {**stats}
     
     def validation_epoch_end(self, outputs):
+        import pdb; pdb.set_trace();
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         y = torch.cat([x['y'] for x in outputs])
         y_preds = torch.cat([x['y_preds'] for x in outputs])
@@ -92,7 +93,9 @@ class MoralClassifier(pl.LightningModule):
         accuracy = metrics.accuracy_score(y.cpu(), y_preds.cpu())
         f1_score_micro = metrics.f1_score(y.cpu(), y_preds.cpu(), average='micro')
         f1_score_macro = metrics.f1_score(y.cpu(), y_preds.cpu(), average='macro')
+
         
+
         stats = {
             'acc': accuracy,
             'f1-micro': f1_score_micro,

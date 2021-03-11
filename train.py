@@ -25,8 +25,8 @@ def train(exp_name, gpus):
     print("Data Loaded")
 
     # create datasets
-    # train_dataset = NewsDataset(data['train'][0:1])
-    train_dataset = NewsDataset(data['train'])
+    train_dataset = NewsDataset(data['train'][0:1])
+    # train_dataset = NewsDataset(data['train'])
     val_dataset = NewsDataset(data['val'])
     test_dataset = NewsDataset(data['test'])
 

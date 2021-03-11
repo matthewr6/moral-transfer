@@ -17,41 +17,48 @@ import torch
 
 # device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
-print("Start")
-file = open('headlines_cnn_bart_split.pkl', 'rb')
-data = pickle.load(file)
-file.close()
-print("Data Loaded")
+def train(exp_name, gpus):
+    print("Start")
+    file = open('headlines_cnn_bart_split.pkl', 'rb')
+    data = pickle.load(file)
+    file.close()
+    print("Data Loaded")
 
-# create datasets
-# train_dataset = NewsDataset(data['train'][0:1])
-train_dataset = NewsDataset(data['train'])
-val_dataset = NewsDataset(data['val'])
-test_dataset = NewsDataset(data['test'])
+    # create datasets
+    # train_dataset = NewsDataset(data['train'][0:1])
+    train_dataset = NewsDataset(data['train'])
+    val_dataset = NewsDataset(data['val'])
+    test_dataset = NewsDataset(data['test'])
 
-train_loader = DataLoader(train_dataset, batch_size=32, num_workers=4)
-val_loader = DataLoader(val_dataset, batch_size=32, num_workers=4)
-test_loader = DataLoader(test_dataset, batch_size=32, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=32, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=32, num_workers=4)
 
-# ------------
-# training
-# ------------
-LEARNING_RATE = 1e-5
-hparams = {'lr': LEARNING_RATE}
-model = MoralClassifier(hparams)
-# model = model.to(device)
-early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
-checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", "test", "checkpoints"), save_top_k=1, monitor='val_loss', mode='min')
-trainer = Trainer(gpus=1, 
-                  distributed_backend='dp',
-                  max_epochs=20, 
-                  callbacks=[early_stop_callback, checkpoint_callback],
-                  )
-                     
-trainer.fit(model, train_loader, val_loader)
-print("Training Done")
+    # ------------
+    # training
+    # ------------
+    LEARNING_RATE = 1e-5
+    hparams = {'lr': LEARNING_RATE}
+    model = MoralClassifier(hparams)
+    # model = model.to(device)
+    early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
+    checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='val_loss', mode='min')
+    trainer = Trainer(gpus=gpus, 
+                    distributed_backend='dp',
+                    max_epochs=20, 
+                    callbacks=[early_stop_callback, checkpoint_callback],
+                    )
+                        
+    trainer.fit(model, train_loader, val_loader)
+    print("Training Done")
 
 # ------------
 # testing
 # ------------
+
+if __name__ == '__main__':
+    gpus = torch.cuda.device_count() if torch.cuda.is_available() else None
+    exp_name = 'lr_1e-5_freeze'
+    train(exp_name, gpus)
+
+
 

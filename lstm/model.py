@@ -19,32 +19,15 @@ class Linear(nn.Linear):
     def initialize(self):
         for n, p in self.named_parameters():
             if 'weight' in n:
-                I.orthogonal(p)
+                I.orthogonal_(p)
             elif 'bias' in n:
-                I.uniform(p, b=.1)
+                I.uniform_(p, b=.1)
 
 
 class Embedding(nn.Embedding):
-    def __init__(self,
-                 num_embeddings,
-                 embedding_dim,
-                 padding_idx=None,
-                 max_norm=None,
-                 norm_type=2,
-                 scale_grad_by_freq=False,
-                 sparse=False,
-                 pretrain=None,
-                 vocab=None,
-                 trainable=False,
-                 stats=True
-                 ):
-        super(Embedding, self).__init__(num_embeddings,
-                                        embedding_dim,
-                                        padding_idx,
-                                        max_norm,
-                                        norm_type,
-                                        scale_grad_by_freq,
-                                        sparse)
+    def __init__(self, num_embeddings, embedding_dim, padding_idx=None, max_norm=None, norm_type=2, scale_grad_by_freq=False,
+                 sparse=False, pretrain=None, vocab=None, trainable=False, stats=True):
+        super(Embedding, self).__init__(num_embeddings, embedding_dim, padding_idx, max_norm, norm_type, scale_grad_by_freq, sparse)
         self.output_size = embedding_dim
         self.num_embeddings = num_embeddings
         self.pretrain = pretrain
@@ -55,7 +38,8 @@ class Embedding(nn.Embedding):
         if pretrain and vocab:
             self.load(pretrain, vocab, stats=stats)
         else:
-            I.xavier_normal(self.weight.data)
+            with torch.no_grad():
+                I.xavier_normal_(self.weight)
 
     def load(self, path, vocab, stats=False):
         """Load pre-trained embeddings from file. Only supports text format embedding.
@@ -73,40 +57,28 @@ class Embedding(nn.Embedding):
                 line = line.rstrip().split(' ')
                 token = line[0]
                 if token in vocab:
-                    vector = self.weight.data.new([float(v) for v in line[1:]])
-                    self.weight.data[vocab[token]] = vector
+                    with torch.no_grad():
+                        vector = self.weight.new([float(v) for v in line[1:]])
+                        self.weight[vocab[token]] = vector
 
 
 class LSTM(nn.LSTM):
-    def __init__(self,
-                 input_size,
-                 hidden_size,
-                 num_layers=1,
-                 bias=True,
-                 batch_first=False,
-                 dropout=0,
-                 bidirectional=False,
-                 forget_bias=0):
-        super(LSTM, self).__init__(input_size=input_size,
-                                   hidden_size=hidden_size,
-                                   num_layers=num_layers,
-                                   bias=bias,
-                                   batch_first=batch_first,
-                                   dropout=dropout,
-                                   bidirectional=bidirectional)
+    def __init__(self, input_size, hidden_size, num_layers=1, bias=True, batch_first=False, dropout=0, bidirectional=False, forget_bias=0):
+        super(LSTM, self).__init__(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, bias=bias, batch_first=batch_first, dropout=dropout, bidirectional=bidirectional)
         self.forget_bias = forget_bias
         self.output_size = hidden_size * (2 if bidirectional else 1)
         self.bidirectional = bidirectional
         self.initialize()
 
     def initialize(self):
-        for n, p in self.named_parameters():
-            if 'weight' in n:
-                # I.xavier_normal(p)
-                I.orthogonal(p)
-            elif 'bias' in n:
-                bias_size = p.size(0)
-                p.data[bias_size // 4:bias_size // 2].fill_(self.forget_bias)
+        with torch.no_grad():
+            for n, p in self.named_parameters():
+                if 'weight' in n:
+                    # I.xavier_normal(p)
+                    I.orthogonal(p)
+                elif 'bias' in n:
+                    bias_size = p.size(0)
+                    p[bias_size // 4:bias_size // 2].fill_(self.forget_bias)
 
     def forward(self, inputs, lens, hx=None):
         inputs_packed = R.pack_padded_sequence(inputs, lens.data.tolist(), batch_first=True)
@@ -115,16 +87,39 @@ class LSTM(nn.LSTM):
         return outputs, h
 
 
+class MoralClassifier(nn.Module):
+    def __init__(self, word_embedding, lstm, linears, embed_dropout_prob=.5, lstm_dropout_prob=.5, gpu=False):
+        super(MoralClassifier, self).__init__()
+
+        self.word_embedding = word_embedding
+        self.lstm = lstm
+        self.linears = nn.ModuleList(linears)
+        self.linear_num = len(linears)
+        self.embed_dropout = nn.Dropout(p=embed_dropout_prob)
+        self.lstm_dropout = nn.Dropout(p=lstm_dropout_prob)
+        self.gpu = gpu
+
+    def forward(self, tokens, lens):
+        # embedding lookup
+        tokens_embed = self.word_embedding.forward(tokens)
+        tokens_embed = self.embed_dropout.forward(tokens_embed)
+
+        # lstm layer
+        _lstm_outputs, (last_hidden, _last_cell) = self.lstm.forward(tokens_embed, lens)
+        last_hidden = last_hidden.squeeze(0)
+        last_hidden = self.lstm_dropout.forward(last_hidden)
+
+        # linear layers
+        linear_input = last_hidden
+        for layer_idx, linear in enumerate(self.linears):
+            linear_input = linear.forward(linear_input)
+            if layer_idx != self.linear_num - 1:
+                linear_input = F.dropout(linear_input, p=.2)
+        return linear_input
+
+
 class MoralClassifierExt(nn.Module):
-    def __init__(self,
-                 word_embedding,
-                 lstm,
-                 linears,
-                 ext_linears,
-                 embed_dropout_prob=.5,
-                 lstm_dropout_prob=.5,
-                 el_dropout_prob=.5,
-                 gpu=False):
+    def __init__(self, word_embedding, lstm, linears, ext_linears, embed_dropout_prob=.5, lstm_dropout_prob=.5, el_dropout_prob=.5, gpu=False):
         super(MoralClassifierExt, self).__init__()
 
         self.word_embedding = word_embedding
@@ -145,8 +140,7 @@ class MoralClassifierExt(nn.Module):
         tokens_embed = self.embed_dropout.forward(tokens_embed)
 
         # lstm layer
-        _lstm_outputs, (last_hidden, _last_cell) = self.lstm.forward(
-            tokens_embed, lens)
+        _lstm_outputs, (last_hidden, _last_cell) = self.lstm.forward(tokens_embed, lens)
         last_hidden = last_hidden.squeeze(0)
         last_hidden = self.lstm_dropout.forward(last_hidden)
 

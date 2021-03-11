@@ -57,7 +57,7 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = torch.cuda.device_count() if torch.cuda.is_available() else None
-    exp_name = 'lr_1e-5_no_freeze'
+    exp_name = 'lr_1e-5_freeze'
     train(exp_name, gpus)
 
 

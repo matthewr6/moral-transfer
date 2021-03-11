@@ -11,6 +11,8 @@ import pandas as pd
 from sklearn import metrics
 import transformers
 import torch
+import pytorch_lightning as pl
+
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
 
 from transformers import BartModel, BartConfig
@@ -32,45 +34,112 @@ from transformers import BartModel, BartConfig
 device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
 class MoralClassifier(pl.LightningModule):
-    def __init__(self):
-        super().__init__()
-        self.Bart = BartModel.from_pretrained('facebook/bart-large-cnn') # https://huggingface.co/transformers/model_doc/bart.html#bartmodel, last_hidden_state 
-        self.Bart = self.Bart.to(device)
+    def __init__(self, args):
+        super(MoralClassifier, self).__init__()
+        self.hparams = args
+        self.l1 = BartModel.from_pretrained('facebook/bart-large-cnn')
+        # Pooler
+        self.l2 = torch.nn.Linear(1024, 1024)
+        self.act = torch.nn.Tanh()
+        # Classifier
+        self.l3 = torch.nn.Dropout(0.2)
+        self.l4 = torch.nn.Linear(1024, 10) # 10 categories
+    
+    def loss_fn(self, outputs, targets):
+        return torch.nn.BCEWithLogitsLoss()(outputs, targets)
 
-    def forward(self, x):
-        # x = (source, generated target, moral vec)
-        # in lightning, forward defines the prediction/inference actions
-        # embedding = self.encoder(x[0])
-        # pred = self.decoder([embedding, x[1]])
-        y = self.Bart(x)
-        return y
+    def forward(self, ids, mask):
+        output_1 = self.l1.encoder(ids, attention_mask = mask).last_hidden_state
+        output_2 = self.act(self.l2(output_1[:, 0]))
+        output_3 = self.l3(output_2)
+        output = self.l4(output_3)
+        return output
+    
+    def training_step(self, batch, batch_nb):
+        ids = batch['ids'].to(device, dtype = torch.long)
+        mask = batch['mask'].to(device, dtype = torch.long)
+        y = batch['targets'].to(device, dtype = torch.float)
+        y_hat = self.forward(ids, mask)
+        loss = self.loss_fn(y_hat, y)
+        self.log('train_loss', loss)
+        return {'loss': loss}
 
-    def training_step(self, batch, batch_idx):
-        return
-        # training_step defined the train loop.
-        # It is independent of forward
-        x, y = batch
-        y_hat = self.forward(x)
-        return {'val_loss': F.cross_entropy(y_hat, y)}
+    def validation_step(self, batch, batch_nb):
+        ids = batch['ids'].to(device, dtype = torch.long)
+        mask = batch['mask'].to(device, dtype = torch.long)
+        y = batch['targets'].to(device, dtype = torch.float)
+        y_hat = self.forward(ids, mask)
+        loss = self.loss_fn(y_hat, y)
+        y_preds = (y_hat >= 0).int()  
+        metrics =  {'val_loss': loss, 
+                   'progress_bar': {'val_loss': loss},
+                   'y_preds': y_preds,
+                   'y_hat': y_hat,
+                   'y': y}
+        
+        self.log('val_loss', loss)
+        return {**metrics}
+    
+    def validation_end(self, outputs):
+        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        y = torch.cat([x['y'] for x in outputs])
+        y_preds = torch.cat([x['y_preds'] for x in outputs])
+        y_hat = torch.cat([x['y_hat'] for x in outputs])
 
-        # x = x.view(x.size(0), -1)
-        # z = self.encoder(x)
-        # x_hat = self.decoder(z)
-        # loss = F.mse_loss(x_hat, x)
-        # # Logging to TensorBoard by default
-        # self.log('train_loss', loss)
-        # return loss
+        accuracy = metrics.accuracy_score(y, y_preds)
+        f1_score_micro = metrics.f1_score(y, y_preds, average='micro')
+        f1_score_macro = metrics.f1_score(y, y_preds, average='macro')
+        
+        metrics = {
+            'acc': accuracy,
+            'f1-micro': f1_score_micro,
+            'f1-macro': f1_score_macro
+            }
+        
+        self.log('val_loss', avg_loss)
+        print(metrics)
+        return {**metrics}
+
+
+    def test_step(self, batch, batch_nb):
+        ids = batch['ids'].to(device, dtype = torch.long)
+        mask = batch['mask'].to(device, dtype = torch.long)
+        y = batch['targets'].to(device, dtype = torch.float)
+        y_hat = self.forward(ids, mask)
+        loss = self.loss_fn(y_hat, y)
+        y_preds = (y_hat >= 0).int()  
+        metrics =  {'test_loss': loss, 
+                   'progress_bar': {'test_loss': loss},
+                   'y_preds': y_preds,
+                   'y_hat': y_hat,
+                   'y': y}
+        
+        self.log('test_loss', loss)
+        return {**metrics}
+    
+    def test_end(self, outputs):
+        avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
+        y = torch.cat([x['y'] for x in outputs])
+        y_preds = torch.cat([x['y_preds'] for x in outputs])
+        y_hat = torch.cat([x['y_hat'] for x in outputs])
+
+        accuracy = metrics.accuracy_score(y, y_preds)
+        f1_score_micro = metrics.f1_score(y, y_preds, average='micro')
+        f1_score_macro = metrics.f1_score(y, y_preds, average='macro')
+
+        metrics = {
+            'acc': accuracy,
+            'f1-micro': f1_score_micro,
+            'f1-macro': f1_score_macro
+            }
+
+        self.log('test_loss', avg_loss)
+        print(metrics)
+        return {**metrics}
+
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        return optimizer
+        return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
+    
+    
 
-
-
-if __name__ == "__main__":
-    trainer = pl.Trainer(
-            gpus=0)
-
-    model = MoralTransformer()
-    trainer.fit(model)
-    trainer.test()

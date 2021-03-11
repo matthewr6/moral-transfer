@@ -1,16 +1,19 @@
-
+import json
 import logging
-from model import MoralClassifierExt, Embedding, LSTM, Linear
-from data import Dataset, MfdResult
-from argparse import ArgumentParser
-from collections import namedtuple, defaultdict
-import os
-import time
-import torch
 
 FORMAT = '%(levelname)s: %(message)s'
 logging.basicConfig(level=logging.INFO, format=FORMAT)
 logger = logging.getLogger(__name__)
+
+from model import MoralClassifier, Embedding, LSTM, Linear
+from data import Dataset
+from argparse import ArgumentParser
+from collections import namedtuple, defaultdict
+
+import os
+import time
+import torch
+
 
 current_time = lambda: int(round(time.time() * 1000))
 Scores = namedtuple('Scores', ['tp', 'tn', 'fp', 'fn', 'recall', 'precision', 'fscore'])
@@ -22,13 +25,11 @@ arg_parser = ArgumentParser()
 arg_parser.add_argument('--train', help='Path to the training file')
 arg_parser.add_argument('--dev', help='Path to the dev file')
 arg_parser.add_argument('--test', help='Path to the test file')
-# arg_parser.add_argument('--el', help='Path to the entity linking result')
-arg_parser.add_argument('--mfd', help='Path to the Moral Foundation Dictionary file')
 arg_parser.add_argument('--model', help='Path to the model directory')
 arg_parser.add_argument('--output', help='Path to the output file under predict mode')
+arg_parser.add_argument('--score', help='Path to the score file')
 
 arg_parser.add_argument('-m', '--mode', default='train', help='Mode: train, test, or predict')
-
 arg_parser.add_argument('--labels', default='AB,AG,FB,FG,HB,HG,IB,IG,MG,PB,PG', help='Label set')
 arg_parser.add_argument('-lr', '--learning_rate', default=.005, type=float, help='Learning rate')
 arg_parser.add_argument('-bs', '--batch_size', default=20, type=int, help='Batch size')
@@ -39,7 +40,6 @@ arg_parser.add_argument('--embedding', default=None, help='Path to the pre-train
 arg_parser.add_argument('--embedding_dim', default=100, type=int, help='Embedding dimension')
 arg_parser.add_argument('--hidden_size', default=100, type=int, help='LSTM hidden state size')
 arg_parser.add_argument('--linear_sizes', default='50', help='Linear layer cell numbers')
-arg_parser.add_argument('--mfd_linear_sizes', default=5)
 arg_parser.add_argument('--gpu', default=1, type=int, help='Use GPU')
 arg_parser.add_argument('--device', type=int, help='Selece GPU')
 
@@ -50,9 +50,8 @@ labels = args.labels.split(',')
 train_file = args.train
 dev_file = args.dev
 test_file = args.test
-# el_file = args.el
-mfd_file = args.mfd
 output_file = args.output
+score_file = args.score
 batch_size = args.batch_size
 learning_rate = args.learning_rate
 max_epoch = args.max_epoch
@@ -61,7 +60,6 @@ embedding_file = args.embedding
 embedding_dim = args.embedding_dim
 hidden_size = args.hidden_size
 linear_sizes = [int(i) for i in args.linear_sizes.split(',')]
-mfd_linear_sizes = [int(i) for i in args.mfd_linear_sizes.split(',')]
 use_gpu = args.gpu > 0 and torch.cuda.device_count() > 0
 if use_gpu and args.device:
     print('Select GPU {}'.format(args.device))
@@ -71,13 +69,11 @@ if use_gpu and args.device:
 assert mode in ['train', 'test', 'predict'], 'Unknown mode: {}'.format(mode)
 
 # ----------------------------------------------------------------------
+# Load data
 if mode == 'train':
     train_set = Dataset(train_file, labels=labels)
     dev_set = Dataset(dev_file, labels=labels)
     test_set = Dataset(test_file, labels=labels)
-    train_mfd_set = MfdResult(train_file, mfd_file)
-    dev_mfd_set = MfdResult(dev_file, mfd_file)
-    test_mfd_set = MfdResult(test_file, mfd_file)
 
     train_token_count, train_label_count = train_set.data_stats()
     dev_token_count, dev_label_count = dev_set.data_stats()
@@ -85,7 +81,6 @@ if mode == 'train':
 
     token_vocab = {'$UNK$': 0}
     label_vocab = {'NM': 0}
-
     for t in list(train_token_count.keys()) + list(dev_token_count.keys()) + list(test_token_count.keys()):
         if t not in token_vocab:
             token_vocab[t] = len(token_vocab)
@@ -113,17 +108,17 @@ else:
     test_set.label_vocab = label_vocab
     test_set.numberize_dataset()
 
+
 # ----------------------------------------------------------------------
 # Construct the model
 models = {}
 optimizers = {}
 if mode == 'train':
-    word_embedding = Embedding(len(token_vocab), embedding_dim, padding_idx=0, sparse=True, vocab=token_vocab, trainable=True)
+    word_embedding = Embedding(len(token_vocab), embedding_dim, padding_idx=0, sparse=True, pretrain=embedding_file, vocab=token_vocab, trainable=True)
     for target_label in labels:
         lstm = LSTM(embedding_dim, hidden_size, batch_first=True, forget_bias=1.0)
-        linears = [Linear(i, o) for i, o in zip([hidden_size + mfd_linear_sizes[-1]] + linear_sizes, linear_sizes + [2])]
-        mfd_linears = [Linear(i, o) for i, o in zip([11] + mfd_linear_sizes[:-1], mfd_linear_sizes)]
-        model = MoralClassifierExt(word_embedding, lstm, linears, mfd_linears)
+        linears = [Linear(i, o) for i, o in zip([hidden_size] + linear_sizes, linear_sizes + [2])]
+        model = MoralClassifier(word_embedding, lstm, linears)
         if use_gpu:
             model.cuda()
         optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate, momentum=.9)
@@ -137,7 +132,7 @@ else:
             os.path.join(model_dir, 'checkpoint_{}.mdl'.format(target_label)))
         lstm = LSTM(saved_state['embedding_dim'], saved_state['hidden_size'], batch_first=True, forget_bias=1.0)
         linears = [Linear(i, o) for i, o in zip([saved_state['hidden_size']] + saved_state['linear_sizes'], saved_state['linear_sizes'] + [2])]
-        model = MoralClassifierExt(word_embedding, lstm, linears, None)
+        model = MoralClassifier(word_embedding, lstm, linears)
         optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate, momentum=.9)
         model.load_state_dict(saved_state['model'])
         model.eval()
@@ -157,8 +152,7 @@ def _calc_scores(prediction, gold):
     fn = int(sum((pred_idx == 0) * (gold == 1)))
     recall = 0 if (tp + fn) == 0 else tp / (tp + fn)
     precision = 0 if (tp + fp) == 0 else tp / (tp + fp)
-    fscore = 0 if (recall == 0 or precision == 0) \
-        else 2.0 * (precision * recall) / (precision + recall)
+    fscore = 0 if (recall == 0 or precision == 0)  else 2.0 * (precision * recall) / (precision + recall)
     return Scores(tp=tp, tn=tn, fp=fp, fn=fn, recall=recall * 100, precision=precision * 100, fscore=fscore * 100)
 
 def _calc_non_moral_scores(label_preds, ds):
@@ -170,7 +164,8 @@ def _calc_non_moral_scores(label_preds, ds):
     tid_preds = defaultdict(list)
     for label, (tids, preds) in label_preds.items():
         _, preds = torch.max(preds, dim=1)
-        preds = preds.data.tolist()
+        with torch.no_grad():
+            preds = preds.tolist()
         for tid, pred in zip(tids, preds):
             tid_preds[tid].append(pred)
     tid_preds = {k: sum(v) == 0 for k, v in tid_preds.items()}
@@ -188,8 +183,7 @@ def _calc_non_moral_scores(label_preds, ds):
             tn += 1
     recall = 0 if (tp + fn) == 0 else tp / (tp + fn)
     precision = 0 if (tp + fp) == 0 else tp / (tp + fp)
-    fscore = 0 if (recall == 0 or precision == 0) \
-        else 2.0 * (precision * recall) / (precision + recall)
+    fscore = 0 if (recall == 0 or precision == 0) else 2.0 * (precision * recall) / (precision + recall)
     return Scores(tp=tp, tn=tn, fp=fp, fn=fn, recall=recall * 100, precision=precision * 100, fscore=fscore * 100)
 
 
@@ -204,7 +198,8 @@ def _gen_result_file(label_preds, data_file, result_file):
     tid_preds = defaultdict(list)
     for label, (tids, preds) in label_preds.items():
         _, preds = torch.max(preds, dim=1)
-        preds = preds.data.tolist()
+        with torch.no_grad():
+            preds = preds.tolist()
         for tid, pred in zip(tids, preds):
             if pred == 1:
                 tid_preds[tid].append(label)
@@ -232,8 +227,6 @@ if mode == 'train':
         test_set.init_dataset(target_label)
         (dev_tids, dev_tokens, dev_labels, dev_lens) = dev_set.get_dataset(max_seq_len, volatile=True, gpu=use_gpu)
         (test_tids, test_tokens, test_labels, test_lens) = test_set.get_dataset(max_seq_len, volatile=True, gpu=use_gpu)
-        test_el = test_mfd_set.get_batch(test_tids, volatile=True, gpu=use_gpu)
-        dev_el = dev_mfd_set.get_batch(dev_tids, volatile=True, gpu=use_gpu)
 
         best_dev_fscore = 0.0
         best_test_scores = None
@@ -245,8 +238,7 @@ if mode == 'train':
             for batch_idx in range(batch_num):
                 optimizer.zero_grad()
                 (batch_tids, batch_tokens, batch_labels, batch_lens) = train_set.get_batch(batch_size, gpu=use_gpu)
-                batch_el = train_mfd_set.get_batch(batch_tids, volatile=False, gpu=use_gpu)
-                model_output = model.forward(batch_tokens, batch_lens, batch_el)
+                model_output = model.forward(batch_tokens, batch_lens)
                 loss = loss_func.forward(model_output, batch_labels)
                 loss.backward()
                 optimizer.step()
@@ -255,9 +247,9 @@ if mode == 'train':
             epoch_elapsed_time = current_time() - epoch_start_time
 
             # Evaluate the current model on dev and test sets
-            dev_preds = model.forward(dev_tokens, dev_lens, dev_el)
+            dev_preds = model.forward(dev_tokens, dev_lens)
             dev_scores = _calc_scores(dev_preds, dev_labels)
-            test_preds = model.forward(test_tokens, test_lens, test_el)
+            test_preds = model.forward(test_tokens, test_lens)
             test_scores = _calc_scores(test_preds, test_labels)
             # Output score
             logger.info('[{}] Epoch {:<3} [{}ms]: {:.4f} | P: {:<5.2f} '
@@ -267,36 +259,32 @@ if mode == 'train':
             # Save the best model based on performance on the dev set
             if dev_scores.fscore > best_dev_fscore:
                 best_dev_fscore = dev_scores.fscore
-                # logger.info('New best score on the dev set.')
-                            # 'Saving the model to {}'.format(model_file))
                 states_to_save = {
                     'token_vocab': token_vocab,
                     'label_vocab': label_vocab,
                     'model': model.state_dict(),
-                    # 'embedding': word_embedding.state_dict(),
                     'embedding_dim': embedding_dim,
                     'hidden_size': hidden_size,
                     'linear_sizes': linear_sizes,
-                    'optimizer': optimizer.state_dict(),
-                    # 'best_dev_fscore': best_dev_fscore
+                    'optimizer': optimizer.state_dict()
                 }
                 torch.save(states_to_save, model_file)
                 best_test_scores = test_scores
                 test_label_preds[target_label] = (test_tids, test_preds)
         if best_test_scores:
             logger.info('Label: {}'.format(target_label))
-            logger.info('Precision: {:.2f}, Recall: {:.2f}, F-score: {:.2f}'.format(
-                best_test_scores.precision,
-                best_test_scores.recall,
-                best_test_scores.fscore
-            ))
+            logger.info('Precision: {:.2f}, Recall: {:.2f}, F-score: {:.2f}'.format(best_test_scores.precision, best_test_scores.recall, best_test_scores.fscore))
             best_scores[target_label] = best_test_scores
         print('-' * 80)
     nm_scores = _calc_non_moral_scores(test_label_preds, test_set)
     logger.info('Label: NM')
     logger.info('Precision: {:.2f}, Recall: {:.2f}, F-score: {:.2f}'.format(nm_scores.precision, nm_scores.recall, nm_scores.fscore))
     print('-' * 80)
+    best_scores['NM'] = nm_scores
     print(best_scores)
+    if score_file:
+        with open(score_file, 'a', encoding='utf-8') as w:
+            w.write(json.dumps(best_scores) + '\n')
 # ----------------------------------------------------------------------
 # Mode: test
 elif mode == 'test':

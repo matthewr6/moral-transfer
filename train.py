@@ -25,8 +25,8 @@ def train(exp_name, gpus):
     print("Data Loaded")
 
     # create datasets
-    train_dataset = NewsDataset(data['train'][0:1])
-    # train_dataset = NewsDataset(data['train'])
+    # train_dataset = NewsDataset(data['train'][0:1])
+    train_dataset = NewsDataset(data['train'])
     val_dataset = NewsDataset(data['val'])
     test_dataset = NewsDataset(data['test'])
 
@@ -36,7 +36,7 @@ def train(exp_name, gpus):
     # ------------
     # training
     # ------------
-    LEARNING_RATE = 1e-5
+    LEARNING_RATE = 1e-4
     hparams = {'lr': LEARNING_RATE}
     model = MoralClassifier(hparams)
     # model = model.to(device)
@@ -57,7 +57,7 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = torch.cuda.device_count() if torch.cuda.is_available() else None
-    exp_name = 'lr_1e-5'
+    exp_name = 'lr_1e-4'
     train(exp_name, gpus)
 
 

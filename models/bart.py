@@ -74,14 +74,14 @@ class MoralClassifier(pl.LightningModule):
         y_hat = self.forward(ids, mask)
         loss = self.loss_fn(y_hat, y)
         y_preds = (y_hat >= 0).int()  
-        metrics =  {'val_loss': loss, 
+        stats =  {'val_loss': loss, 
                    'progress_bar': {'val_loss': loss},
                    'y_preds': y_preds,
                    'y_hat': y_hat,
                    'y': y}
         
         self.log('val_loss', loss)
-        return {**metrics}
+        return {**stats}
     
     def validation_epoch_end(self, outputs):
         import pdb; pdb.set_trace();
@@ -94,15 +94,15 @@ class MoralClassifier(pl.LightningModule):
         f1_score_micro = metrics.f1_score(y, y_preds, average='micro')
         f1_score_macro = metrics.f1_score(y, y_preds, average='macro')
         
-        metrics = {
+        stats = {
             'acc': accuracy,
             'f1-micro': f1_score_micro,
             'f1-macro': f1_score_macro
             }
         
-        self.log('val_loss', avg_loss, **metrics)
-        print(metrics)
-        return {**metrics}
+        self.log('val_loss', avg_loss, **stats)
+        print(stats)
+        return {**stats}
 
 
     def test_step(self, batch, batch_nb):
@@ -112,14 +112,14 @@ class MoralClassifier(pl.LightningModule):
         y_hat = self.forward(ids, mask)
         loss = self.loss_fn(y_hat, y)
         y_preds = (y_hat >= 0).int()  
-        metrics =  {'test_loss': loss, 
+        stats =  {'test_loss': loss, 
                    'progress_bar': {'test_loss': loss},
                    'y_preds': y_preds,
                    'y_hat': y_hat,
                    'y': y}
         
         self.log('test_loss', loss)
-        return {**metrics}
+        return {**stats}
     
     def test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
@@ -131,15 +131,15 @@ class MoralClassifier(pl.LightningModule):
         f1_score_micro = metrics.f1_score(y, y_preds, average='micro')
         f1_score_macro = metrics.f1_score(y, y_preds, average='macro')
 
-        metrics = {
+        stats = {
             'acc': accuracy,
             'f1-micro': f1_score_micro,
             'f1-macro': f1_score_macro
             }
 
-        self.log('test_loss', avg_loss, **metrics)
-        print(metrics)
-        return {**metrics}
+        self.log('test_loss', avg_loss, **stats)
+        print(stats)
+        return {**stats}
 
 
     def configure_optimizers(self):

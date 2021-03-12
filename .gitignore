@@ -6,3 +6,4 @@ data/filtered_sources.txt
 lightning_logs/
 experiments/
 *.tsv
+saved_models/

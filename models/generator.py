@@ -55,48 +55,45 @@ class MoralTransformer(pl.LightningModule):
 
         self.to_discrim_input = nn.Linear(self.n_vocab, 1) # temporary argmax hack
 
-    def forward(self, input_seqs, moral_targets, generated_seqs): # create genrated seqs and mask instead to just mask everything??
+    def forward(self, input_seqs, input_masks, moral_targets, generated_seqs, generated_masks): # create genrated seqs and mask instead to just mask everything??
         
         copied_morals = torch.unsqueeze(moral_targets, 1).repeat(1, self.seq_len, 1)
 
-        encoded = self.encoder(input_seqs).last_hidden_state
+        encoded = self.encoder(input_seqs, input_masks).last_hidden_state
         encoded = torch.cat((encoded, copied_morals), 2)
 
         encoded = self.linear(encoded)
 
         generated_embeddings = self.embedding(generated_seqs)
-        decoded = self.decoder(generated_embeddings, encoded)
+        decoded = self.decoder(generated_embeddings, encoded, input_masks, generated_masks)
 
         head = self.decoder_head(decoded)
         outputs = F.softmax(head, dim=-1)
-        # return outputs
-
-        outputs = self.to_discrim_input(outputs)
-        outputs = torch.squeeze(outputs, -1)
-
-        outputs = self.discriminator(outputs.long())
-
         return outputs
 
-    def training_step(self, batch, batch_idx):
-        input_seqs, new_morals, original_morals, y = batch
-        intermediate_outs = self(input_seqs, new_morals) # for discriminator/BERTSCORE
-        cyclic_outs = self(intermediate_out, original_morals) # for MMI?
+        # outputs = self.to_discrim_input(outputs)
+        # outputs = torch.squeeze(outputs, -1)
 
-        # TODO:
-        # MMI between cyclic and input sequences
-        # discriminator loss from intermediate_outs
+        # outputs = self.discriminator(outputs.long())
+
+        # return outputs
+
+    def training_step(self, batch, batch_idx):
+        input_seqs, input_masks, moral_targets, generated_seqs, generated_masks = batch
+        
+        generated_seqs = self(input_seqs, input_masks, moral_targets, generated_seqs, generated_masks) # for discriminator and BERTSCORE
+        
+        # 1.  Discriminator outputs
+        # TODO: how to feed this in properly
+        # discriminator currently expects shape (BATCH_SIZE, seq_len) of type LongTensor (TOKENS)
+        # but generator output is (BATCH_SIZE, seq_len, n_vocab) of type FloatTensor     (TOKEN PROBABILITIES)
+        predicted_morals = self.discriminator(generated_seqs)
+
+        # 2. BERTSCORE loss between generated_seqs and input_seqs
+
+        # 3. Backpropagate through discriminator: BCEWithLogitsLoss(predicted_morals, moral_targets)
+
         return
-        # training_step defined the train loop.
-        # It is independent of forward
-        # x, y = batch
-        # x = x.view(x.size(0), -1)
-        # z = self.encoder(x)
-        # x_hat = self.decoder(z)
-        # loss = F.mse_loss(x_hat, x)
-        # # Logging to TensorBoard by default
-        # self.log('train_loss', loss)
-        # return loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=0.001)

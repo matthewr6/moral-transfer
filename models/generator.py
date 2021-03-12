@@ -53,6 +53,8 @@ class MoralTransformer(pl.LightningModule):
         self.discriminator = MoralClassifier.load_from_checkpoint('../saved_models/classifier_frozen_encoder_lr_1e-4.ckpt')
         # self.discriminator.load_state_dict(checkpoint['state_dict'])
 
+        self.to_discrim_input = nn.Linear(self.n_vocab, 1) # temporary argmax hack
+
     def forward(self, input_seqs, moral_targets, generated_seqs): # create genrated seqs and mask instead to just mask everything??
         
         copied_morals = torch.unsqueeze(moral_targets, 1).repeat(1, self.seq_len, 1)
@@ -66,7 +68,15 @@ class MoralTransformer(pl.LightningModule):
         decoded = self.decoder(generated_embeddings, encoded)
 
         head = self.decoder_head(decoded)
-        return F.softmax(head, dim=-1)
+        outputs = F.softmax(head, dim=-1)
+        # return outputs
+
+        outputs = self.to_discrim_input(outputs)
+        outputs = torch.squeeze(outputs, -1)
+
+        outputs = self.discriminator(outputs.long())
+
+        return outputs
 
     def training_step(self, batch, batch_idx):
         input_seqs, new_morals, original_morals, y = batch
@@ -114,24 +124,30 @@ if __name__ == '__main__':
     now = time.time()
     out_seqs = transformer(input_seqs, moral_targets, generated_seqs)
     elapsed = time.time() - now
+    print(out_seqs.shape)
 
     est_train_samples = 44000
     seconds_in_hour = 60 * 60
     est_seconds_per_epoch = (est_train_samples / batch_size) * elapsed
 
-    print('~{} secs/epoch'.format(round(est_seconds_per_epoch)))
+    print('~{} secs/forward epoch'.format(round(est_seconds_per_epoch)))
 
     # transformer.eval()
     # outputs = transformer.forward(source, moral_target, generated)
     # for o in transformer.decode_to_tokens(outputs):
     #     print(o)
 
-    # transformer.train()
-    # loss = torch.sum(outputs)
-    # optimizer = torch.optim.Adam(params=transformer.parameters(), lr=0.01)
-    # optimizer.zero_grad()
-    # loss.backward()
-    # optimizer.step()
+    transformer.train()
+    loss = torch.sum(out_seqs)
+    optimizer = torch.optim.Adam(params=transformer.parameters(), lr=0.01)
+    now = time.time()
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    elapsed = time.time() - now
+    est_seconds_per_epoch = (est_train_samples / batch_size) * elapsed
+
+    print('~{} secs/backprop epoch'.format(round(est_seconds_per_epoch)))
 
     # transformer.eval()
     # outputs = transformer.forward(source, moral_target, generated)

@@ -61,7 +61,14 @@ def train(exp_name, gpus):
                     # callbacks=[checkpoint_callback],
                     )
                         
-    trainer.fit(model, train_loader, val_loader)
+    lr_finder = trainer.lr_find(model)
+    print(lr_finder.results)
+    fig = lr_finder.plot(suggest=True)
+    fig.show()
+    new_lr = lr_finder.suggestion()
+    print(new_lr)
+
+    #trainer.fit(model, train_loader, val_loader)
     print("Training Done")
 
 # ------------
@@ -70,7 +77,7 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = torch.cuda.device_count() if torch.cuda.is_available() else None
-    exp_name = 'modified_classifier'
+    exp_name = 'lr_explorer'
     train(exp_name, gpus)
 
 

@@ -37,12 +37,13 @@ def train(exp_name, gpus):
     # training
     # ------------
     LEARNING_RATE = 1e-5
-    hparams = {'lr': LEARNING_RATE}
+    # hparams = {'lr': LEARNING_RATE}
     model = MoralClassifier(hparams)
     # model = model.to(device)
     early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
     checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='val_loss', mode='min')
     trainer = Trainer(gpus=gpus, 
+                    auto_lr_find=True,
                     distributed_backend='dp',
                     max_epochs=20, 
                     callbacks=[early_stop_callback, checkpoint_callback],

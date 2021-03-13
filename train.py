@@ -46,7 +46,7 @@ def train(exp_name, gpus):
     # training
     # ------------
     LEARNING_RATE = 1e-5
-    # hparams = {'lr': LEARNING_RATE}
+    hparams = {'lr': LEARNING_RATE}
     model = MoralClassifier(hparams)
     # model = CustomMoralClassifier(hparams)
     # model = MoralClassifier(hparams)

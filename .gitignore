@@ -2,8 +2,10 @@ data/nela-covid-2020/
 data/nela-elections-2020/
 data/filtered_sources.txt
 .sftp-config.json
+_sftp-config.json
 *.pkl
 lightning_logs/
 experiments/
 *.tsv
 saved_models/
+push_to_remote.sh

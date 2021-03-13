@@ -55,6 +55,10 @@ class MoralTransformer(pl.LightningModule):
 
         self.to_discrim_input = nn.Linear(self.n_vocab, 1) # temporary argmax hack
 
+    def build_onehot_embeddings(self):
+        ids = torch.LongTensor([i for i in range(self.vocab_size)])
+        return torch.transpose(self.embedding(ids), 0, 1).detach()
+
     def forward(self, input_seqs, input_masks, moral_targets, generated_seqs, generated_masks): # create genrated seqs and mask instead to just mask everything??
         
         copied_morals = torch.unsqueeze(moral_targets, 1).repeat(1, self.seq_len, 1)

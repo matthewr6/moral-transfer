@@ -15,31 +15,46 @@ import pytorch_lightning as pl
 
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
 
+from transformers import BartModel, BartConfig
+
 device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
 class CustomMoralClassifier(pl.LightningModule):
     def __init__(self, args):
-        super(MoralClassifier, self).__init__()
+        super(CustomMoralClassifier, self).__init__()
         self.hparams = args
-        self.pseudoembedding = nn.Linear(vocab_size, embedding_dim) # TODO: what are these?
+        self.bart = BartModel.from_pretrained('facebook/bart-large-cnn')
 
-        encoder_layer = nn.TransformerEncoderLayer(d_model=embedding_dim, nhead=16, dim_feedforward=1024, dropout=0.1, activation='relu')
-        self.encoder = nn.TransformerEncoder(decoder_layer, num_layers=12)
+        self.vocab_size = 50264
+        self.onehot_embeddings = nn.Linear(self.vocab_size, 1024, bias=False)
+        self.onehot_embeddings.weight = nn.Parameter(self.build_lookups())
+
+        # self.bart.encoder.embed_tokens = nn.Identity()
+        # freeze bert weights
+        # for param in self.bart.parameters():
+        #     param.requires_grad = False        
         # Pooler
-        self.l2 = nn.Linear(1024, 1024)
-        self.act = nn.Tanh()
+        self.l2 = torch.nn.Linear(1024, 1024)
+        self.act = torch.nn.Tanh()
         # Classifier
-        self.l3 = nn.Dropout(0.2)
-        self.l4 = nn.Linear(1024, 10) # 10 categories
+        self.l3 = torch.nn.Dropout(0.2)
+        self.l4 = torch.nn.Linear(1024, 10) # 10 categories
+
+
+    def build_lookups(self):
+        ids = torch.LongTensor([i for i in range(self.vocab_size)])
+        return torch.transpose(self.bart.encoder.embed_tokens(ids), 0, 1).detach()
     
     def loss_fn(self, outputs, targets):
         return nn.BCEWithLogitsLoss()(outputs, targets)
 
-    # def forward(self, ids, mask):
-    def forward(self, one_hot_encodings):
-        pseudoembeddings = self.pseudoembedding(one_hot_encodings)
-        encoded = eslf.encoder(pseudoembeddings).last_hidden_state
-        output_2 = self.act(self.l2(encoded[:, 0]))
+    def forward(self, one_hot_encodings, mask):
+        embedded = self.onehot_embeddings(one_hot_encodings) * self.bart.encoder.embed_scale
+        # embedded = self.bart.encoder.embed_positions(embedded)
+
+        output_1 = self.bart.encoder(inputs_embeds=embedded, attention_mask = mask).last_hidden_state
+
+        output_2 = self.act(self.l2(output_1[:, 0]))
         output_3 = self.l3(output_2)
         output = self.l4(output_3)
         return output
@@ -48,7 +63,8 @@ class CustomMoralClassifier(pl.LightningModule):
         ids = batch['ids']
         mask = batch['mask']
         y = batch['targets']
-        y_hat = self.forward(ids, mask)
+        one_hot_encodings = F.one_hot(ids, num_classes=50264).float()
+        y_hat = self.forward(one_hot_encodings, mask)
         loss = self.loss_fn(y_hat, y)
         self.log('train_loss', loss)
         return {'loss': loss}
@@ -57,7 +73,8 @@ class CustomMoralClassifier(pl.LightningModule):
         ids = batch['ids']
         mask = batch['mask']
         y = batch['targets']
-        y_hat = self.forward(ids, mask)
+        one_hot_encodings = F.one_hot(ids, num_classes=self.vocab_size).float()
+        y_hat = self.forward(one_hot_encodings, mask)
         loss = self.loss_fn(y_hat, y)
         y_preds = (y_hat >= 0).int()  
         stats =  {'val_loss': loss, 
@@ -94,7 +111,8 @@ class CustomMoralClassifier(pl.LightningModule):
         ids = batch['ids']
         mask = batch['mask']
         y = batch['targets']
-        y_hat = self.forward(ids, mask)
+        one_hot_encodings = F.one_hot(ids, num_classes=self.vocab_size).float()
+        y_hat = self.forward(one_hot_encodings, mask)
         loss = self.loss_fn(y_hat, y)
         y_preds = (y_hat >= 0).int()  
         stats =  {'test_loss': loss, 

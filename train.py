@@ -63,8 +63,10 @@ def train(exp_name, gpus):
                         
     lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
     print(lr_finder.results)
+
     fig = lr_finder.plot(suggest=True)
     fig.show()
+    fig.savefig('lr.png')
     new_lr = lr_finder.suggestion()
     print(new_lr)
 

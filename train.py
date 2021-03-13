@@ -61,7 +61,7 @@ def train(exp_name, gpus):
                     # callbacks=[checkpoint_callback],
                     )
                         
-    lr_finder = trainer.tuner.lr_find(model, train_loader)
+    lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
     print(lr_finder.results)
     fig = lr_finder.plot(suggest=True)
     fig.show()

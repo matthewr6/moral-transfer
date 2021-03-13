@@ -25,4 +25,4 @@ def rand_target_morals(input_vec):
                 return output_vec  # No opposing morals, return True
 
 
-print(rand_target_morals([0 for i in range(10)]))
+# print(rand_target_morals([0 for i in range(10)]))

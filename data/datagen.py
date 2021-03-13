@@ -56,37 +56,35 @@ def partial_sequence_generator(batch_size=1):
 
 
 # Training data for generator model in one direction.
-# Output format:
-# X: [source sequence, original morals, empty sequence (as generated seq)]
-# y: [source sequence, [1] + original morals]
 def identity_moral_features_generator(batch_size=1):
     training_data = data['train'].copy()
     random.shuffle(training_data)
     i = 0
     N = len(training_data)
     while i < N:
-        X = []
-        y = []
+        input_seqs = []
+        input_masks = []
+        moral_targets = []
+        generated_seqs = []
+        generated_masks = []
         next_batch_size = min(batch_size, N - i)
         for j in range(next_batch_size):
             article = training_data[i]
             input_seq = article['content']
             input_mask = article['attention_mask']
-            original_morals = article['moral_features']
+            original_moral = article['moral_features']
             generated_seq = [PADDING_TOK] * len(input_seq)
+            generated_mask = [MASK] * len(input_seq)
 
-            X.append([
-                input_seq,
-                original_morals,
-                generated_seq
-            ])
-            y.append([
-                input_seq,
-                original_morals,
-                # [1] + original_morals, # include discriminator prediction
-            ])
+            input_seqs.append(input_seq)
+            input_masks.append(input_mask)
+            moral_targets.append(original_moral)
+            generated_seqs.append(generated_seq)
+            generated_masks.append(generated_mask)
+
             i += 1
-        yield X, y
+
+        yield input_seqs, input_masks, moral_targets, generated_seqs, generated_masks
 
 def gen_new_morals(moral_features):
     return moral_features

@@ -53,40 +53,51 @@ class MoralTransformer(pl.LightningModule):
         self.discriminator = MoralClassifier.load_from_checkpoint('../saved_models/classifier_frozen_encoder_lr_1e-4.ckpt')
         # self.discriminator.load_state_dict(checkpoint['state_dict'])
 
-    def forward(self, input_seqs, moral_targets, generated_seqs): # create genrated seqs and mask instead to just mask everything??
+        self.to_discrim_input = nn.Linear(self.n_vocab, 1) # temporary argmax hack
+
+    def build_onehot_embeddings(self):
+        ids = torch.LongTensor([i for i in range(self.vocab_size)])
+        return torch.transpose(self.embedding(ids), 0, 1).detach()
+
+    def forward(self, input_seqs, input_masks, moral_targets, generated_seqs, generated_masks): # create genrated seqs and mask instead to just mask everything??
         
         copied_morals = torch.unsqueeze(moral_targets, 1).repeat(1, self.seq_len, 1)
 
-        encoded = self.encoder(input_seqs).last_hidden_state
+        encoded = self.encoder(input_seqs, input_masks).last_hidden_state
         encoded = torch.cat((encoded, copied_morals), 2)
 
         encoded = self.linear(encoded)
 
         generated_embeddings = self.embedding(generated_seqs)
-        decoded = self.decoder(generated_embeddings, encoded)
+        decoded = self.decoder(generated_embeddings, encoded, input_masks, generated_masks)
 
         head = self.decoder_head(decoded)
-        return F.softmax(head, dim=-1)
+        outputs = F.softmax(head, dim=-1)
+        return outputs
+
+        # outputs = self.to_discrim_input(outputs)
+        # outputs = torch.squeeze(outputs, -1)
+
+        # outputs = self.discriminator(outputs.long())
+
+        # return outputs
 
     def training_step(self, batch, batch_idx):
-        input_seqs, new_morals, original_morals, y = batch
-        intermediate_outs = self(input_seqs, new_morals) # for discriminator/BERTSCORE
-        cyclic_outs = self(intermediate_out, original_morals) # for MMI?
+        input_seqs, input_masks, moral_targets, generated_seqs, generated_masks = batch
+        
+        generated_seqs = self(input_seqs, input_masks, moral_targets, generated_seqs, generated_masks) # for discriminator and BERTSCORE
+        
+        # 1.  Discriminator outputs
+        # TODO: how to feed this in properly
+        # discriminator currently expects shape (BATCH_SIZE, seq_len) of type LongTensor (TOKENS)
+        # but generator output is (BATCH_SIZE, seq_len, n_vocab) of type FloatTensor     (TOKEN PROBABILITIES)
+        predicted_morals = self.discriminator(generated_seqs)
 
-        # TODO:
-        # MMI between cyclic and input sequences
-        # discriminator loss from intermediate_outs
+        # 2. BERTSCORE loss between generated_seqs and input_seqs
+
+        # 3. Backpropagate through discriminator: BCEWithLogitsLoss(predicted_morals, moral_targets)
+
         return
-        # training_step defined the train loop.
-        # It is independent of forward
-        # x, y = batch
-        # x = x.view(x.size(0), -1)
-        # z = self.encoder(x)
-        # x_hat = self.decoder(z)
-        # loss = F.mse_loss(x_hat, x)
-        # # Logging to TensorBoard by default
-        # self.log('train_loss', loss)
-        # return loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
@@ -114,24 +125,30 @@ if __name__ == '__main__':
     now = time.time()
     out_seqs = transformer(input_seqs, moral_targets, generated_seqs)
     elapsed = time.time() - now
+    print(out_seqs.shape)
 
     est_train_samples = 44000
     seconds_in_hour = 60 * 60
     est_seconds_per_epoch = (est_train_samples / batch_size) * elapsed
 
-    print('~{} secs/epoch'.format(round(est_seconds_per_epoch)))
+    print('~{} secs/forward epoch'.format(round(est_seconds_per_epoch)))
 
     # transformer.eval()
     # outputs = transformer.forward(source, moral_target, generated)
     # for o in transformer.decode_to_tokens(outputs):
     #     print(o)
 
-    # transformer.train()
-    # loss = torch.sum(outputs)
-    # optimizer = torch.optim.Adam(params=transformer.parameters(), lr=0.01)
-    # optimizer.zero_grad()
-    # loss.backward()
-    # optimizer.step()
+    transformer.train()
+    loss = torch.sum(out_seqs)
+    optimizer = torch.optim.Adam(params=transformer.parameters(), lr=0.01)
+    now = time.time()
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    elapsed = time.time() - now
+    est_seconds_per_epoch = (est_train_samples / batch_size) * elapsed
+
+    print('~{} secs/backprop epoch'.format(round(est_seconds_per_epoch)))
 
     # transformer.eval()
     # outputs = transformer.forward(source, moral_target, generated)

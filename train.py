@@ -12,6 +12,8 @@ from sklearn import metrics
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from models import MoralClassifier
+from models.custom_transformer_classifier import CustomMoralClassifier
+from models.one_hot_to_bart_embedding import PseudoEmbedding, EmbeddingDataset
 from data import NewsDataset
 import torch
 
@@ -30,8 +32,15 @@ def train(exp_name, gpus):
     val_dataset = NewsDataset(data['val'])
     test_dataset = NewsDataset(data['test'])
 
+    embedding_dataset = EmbeddingDataset()
+
     train_loader = DataLoader(train_dataset, batch_size=32, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=32, num_workers=4)
+
+    # train_loader = DataLoader(embedding_dataset, batch_size=32, num_workers=4)
+    # train_loader = DataLoader(embedding_dataset, batch_size=512, num_workers=4)
+    # val_loader = DataLoader(embedding_dataset, batch_size=64, num_workers=4)
+
 
     # ------------
     # training
@@ -39,14 +48,17 @@ def train(exp_name, gpus):
     LEARNING_RATE = 1e-5
     # hparams = {'lr': LEARNING_RATE}
     model = MoralClassifier(hparams)
-    # model = model.to(device)
+    # model = CustomMoralClassifier(hparams)
+    # model = MoralClassifier(hparams)
+    # model = PseudoEmbedding(hparams)
     early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
-    checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='val_loss', mode='min')
+    checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
     trainer = Trainer(gpus=gpus, 
                     auto_lr_find=True,
                     distributed_backend='dp',
                     max_epochs=20, 
                     callbacks=[early_stop_callback, checkpoint_callback],
+                    # callbacks=[checkpoint_callback],
                     )
                         
     trainer.fit(model, train_loader, val_loader)
@@ -58,7 +70,7 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = torch.cuda.device_count() if torch.cuda.is_available() else None
-    exp_name = 'lr_1e-5_freeze'
+    exp_name = 'modified_classifier'
     train(exp_name, gpus)
 
 

@@ -54,23 +54,22 @@ def train(exp_name, gpus):
     early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
     checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
     trainer = Trainer(gpus=gpus, 
-                    auto_lr_find=True,
+                    # auto_lr_find=False, # use to explore LRs
                     distributed_backend='dp',
                     max_epochs=20, 
                     callbacks=[early_stop_callback, checkpoint_callback],
-                    # callbacks=[checkpoint_callback],
                     )
-                        
-    lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
-    print(lr_finder.results)
 
-    fig = lr_finder.plot(suggest=True)
-    fig.show()
-    fig.savefig('lr.png')
-    new_lr = lr_finder.suggestion()
-    print(new_lr)
+    # LR Exploration        
+    # lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
+    # print(lr_finder.results)
+    # fig = lr_finder.plot(suggest=True)
+    # fig.show()
+    # fig.savefig('lr.png')
+    # new_lr = lr_finder.suggestion()
+    # print(new_lr)
 
-    #trainer.fit(model, train_loader, val_loader)
+    trainer.fit(model, train_loader, val_loader)
     print("Training Done")
 
 # ------------

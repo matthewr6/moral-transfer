@@ -14,6 +14,7 @@ from transformers import DistilBertModel, BartModel
 from transformers import BartTokenizerFast, BertTokenizerFast
 
 from bart import MoralClassifier
+from custom_transformer_classifier import OneHotMoralClassifier
 
 # https://arxiv.org/pdf/1903.06353.pdf
 
@@ -24,7 +25,7 @@ MASK_TOK = 3 # is this correct?
 # Stacks moral vector with encoded representation, prior to decoder.
 class MoralTransformer(pl.LightningModule):
 
-    def __init__(self, seq_len=128, moral_vec_size=5, discriminator=None):
+    def __init__(self, seq_len=128, moral_vec_size=5, discriminator=None, freeze_encoder=True, bart_decoder=True, freeze_decoder=True):
         super().__init__()
         self.seq_len = seq_len
         self.tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
@@ -36,6 +37,10 @@ class MoralTransformer(pl.LightningModule):
         self.encoder.requires_grad = False
         self.embedding = self.pretrained.shared
 
+        if freeze_encoder:
+            for param in self.encoder.parameters():
+                param.requires_grad = False  
+
         self.n_vocab = self.embedding.num_embeddings
         self.n_encoder_features = self.encoder.layernorm_embedding.normalized_shape[0]
 
@@ -43,15 +48,19 @@ class MoralTransformer(pl.LightningModule):
         self.linear = nn.Linear(self.n_encoder_features + moral_vec_size, self.embedding.embedding_dim)
 
         # Decoder
-        decoder_layer = nn.TransformerDecoderLayer(d_model=self.embedding.embedding_dim, nhead=16, dim_feedforward=1024, dropout=0.1, activation='relu')
-        self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
+        if bart_decoder:
+            self.decoder = self.pretrained.decoder
+        else:
+            decoder_layer = nn.TransformerDecoderLayer(d_model=self.embedding.embedding_dim, nhead=16, dim_feedforward=1024, dropout=0.1, activation='relu')
+            self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
+        if freeze_decoder:
+            for param in self.decoder.parameters():
+                param.requires_grad = False
+
         self.decoder_head = nn.Linear(self.embedding.embedding_dim, self.n_vocab)
 
-        # self.discriminator = discriminator
-
-        # checkpoint = torch.load('../saved_models/classifier_frozen_encoder_lr_1e-4.ckpt')
-        self.discriminator = MoralClassifier.load_from_checkpoint('../saved_models/classifier_frozen_encoder_lr_1e-4.ckpt')
-        # self.discriminator.load_state_dict(checkpoint['state_dict'])
+        self.discriminator = OneHotMoralClassifier(use_mask=False)
+        self.discriminator.load_state_dict(torch.load('../saved_models/onehot_classifier.state'))
 
         self.to_discrim_input = nn.Linear(self.n_vocab, 1) # temporary argmax hack
 
@@ -73,14 +82,10 @@ class MoralTransformer(pl.LightningModule):
 
         head = self.decoder_head(decoded)
         outputs = F.softmax(head, dim=-1)
-        return outputs
-
-        # outputs = self.to_discrim_input(outputs)
-        # outputs = torch.squeeze(outputs, -1)
-
-        # outputs = self.discriminator(outputs.long())
-
         # return outputs
+
+        outputs = self.discriminator(outputs)
+        return outputs
 
     def training_step(self, batch, batch_idx):
         input_seqs, input_masks, moral_targets, generated_seqs, generated_masks = batch
@@ -88,14 +93,14 @@ class MoralTransformer(pl.LightningModule):
         generated_seqs = self(input_seqs, input_masks, moral_targets, generated_seqs, generated_masks) # for discriminator and BERTSCORE
         
         # 1.  Discriminator outputs
-        # TODO: how to feed this in properly
-        # discriminator currently expects shape (BATCH_SIZE, seq_len) of type LongTensor (TOKENS)
-        # but generator output is (BATCH_SIZE, seq_len, n_vocab) of type FloatTensor     (TOKEN PROBABILITIES)
         predicted_morals = self.discriminator(generated_seqs)
+        moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
 
         # 2. BERTSCORE loss between generated_seqs and input_seqs
+        content_loss = 0
 
-        # 3. Backpropagate through discriminator: BCEWithLogitsLoss(predicted_morals, moral_targets)
+        # 3. Backpropagate
+        loss = moral_loss + content_loss
 
         return
 

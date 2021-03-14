@@ -12,7 +12,7 @@ from sklearn import metrics
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from models import MoralClassifier
-from models.custom_transformer_classifier import CustomMoralClassifier
+from models.custom_transformer_classifier import OneHotMoralClassifier
 from models.one_hot_to_bart_embedding import PseudoEmbedding, EmbeddingDataset
 from data import NewsDataset
 import torch
@@ -47,7 +47,7 @@ def train(exp_name, gpus):
     # ------------
     LEARNING_RATE = 1e-5
     hparams = {'lr': LEARNING_RATE}
-    model = CustomMoralClassifier(hparams)
+    model = OneHotMoralClassifier(hparams)
     # model = MoralClassifier(hparams)
     # model = PseudoEmbedding(hparams)
     # model = model.to(device)
@@ -69,7 +69,7 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = torch.cuda.device_count() if torch.cuda.is_available() else None
-    exp_name = 'modified_classifier'
+    exp_name = 'modified_classifier_maskless'
     train(exp_name, gpus)
 
 

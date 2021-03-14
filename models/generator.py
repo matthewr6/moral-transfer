@@ -20,6 +20,7 @@ import transformers
 from bert_score import score
 import bert_score
 
+device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
 class BartScorer():
     def __init__(self):
@@ -54,7 +55,7 @@ class MoralTransformer(pl.LightningModule):
         # Load pretrained model
         # self.pretrained = BartModel.from_pretrained('facebook/bart-large-cnn')
         print('Loading pretrained bart-large-cnn...')
-        self.pretrained = BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn').cuda()
+        self.pretrained = BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn').to(device)
         print('Pretrained bart-large-cnn loaded')
         # print(self.pretrained)
         # sys.exit()
@@ -107,19 +108,20 @@ class MoralTransformer(pl.LightningModule):
         for linear in self.linears:
             encoded = linear(encoded)
 
-        generated_seqs = torch.LongTensor([[PADDING_TOK] * seq_len] * batch_size).cuda()
-        generated_masks = torch.LongTensor([[MASK] * seq_len] * batch_size).cuda()
+        generated_seqs = torch.LongTensor([[PADDING_TOK] * seq_len] * batch_size).to(device)
+        generated_masks = torch.LongTensor([[MASK] * seq_len] * batch_size).to(device)
         decoded = self.decoder(input_ids=generated_seqs, attention_mask=generated_masks, encoder_hidden_states=encoded, encoder_attention_mask=input_masks).last_hidden_state
 
         outputs = self.lm_head(decoded)
         outputs = F.softmax(outputs, dim=-1)
         return outputs
 
-    def training_step(self, batch, batch_idx):
+    # def training_step(self, batch, batch_idx):
+        # input_seqs = batch['ids']
+        # input_masks = batch['mask']
+        # moral_targets = batch['targets']
+    def training_step(self, input_seqs, input_masks, moral_targets):
         import pdb; pdb.set_trace()
-        input_seqs = batch['ids']
-        input_masks = batch['mask']
-        moral_targets = batch['targets']
         
         generated_seqs = self.forward(input_seqs, input_masks, moral_targets) # for discriminator and BERTSCORE
         
@@ -140,10 +142,10 @@ class MoralTransformer(pl.LightningModule):
                 content_loss = F.cosine_similarity(input_embeddings, output_embeddings)
             elif self.content_loss_type == 'pairwise': 
                 content_loss = F.pairwise_distance(input_embeddings, output_embeddings)
-            else: 
+            elif self.content_loss_type.content_loss_type="normalized_pairwise": # normalized Euclidean Distance
                 unit_input = F.normalize(input_embeddings)
                 unit_output = F.normalize(output_embeddings)
-                content_loss = F.pairwise_distance(input_embeddings, output_embeddings) /  self.n_encoder_features
+                content_loss = F.pairwise_distance(unit_input, unit_output) / 2
 
         else:
             content_loss = 0
@@ -173,13 +175,18 @@ if __name__ == '__main__':
     seq_len = 128
     batch_size = 16
 
-    discriminator = OneHotMoralClassifier({}, use_mask=False)
-    discriminator.load_state_dict(torch.load('discriminator_state.pkl'))
-    transformer = MoralTransformer(seq_len=seq_len, discriminator=discriminator).cuda()
+    device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
-    input_seqs = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
-    input_masks = torch.LongTensor([[UNMASK] * seq_len] * batch_size).cuda()
-    moral_targets = torch.FloatTensor([list(range(10))] * batch_size).cuda()
+
+    discriminator = OneHotMoralClassifier({}, use_mask=False)
+    discriminator.load_state_dict(torch.load('discriminator_state.pkl', map_location=device))
+    transformer = MoralTransformer(discriminator=discriminator, content_loss_type="normalized_pairwise").to(device)
+
+    input_seqs = torch.LongTensor([list(range(seq_len))] * batch_size).to(device)
+    input_masks = torch.LongTensor([[UNMASK] * seq_len] * batch_size).to(device)
+    moral_targets = torch.FloatTensor([list(range(10))] * batch_size).to(device)
+
+    transformer.training_step(input_seqs, input_masks, moral_targets)
 
     now = time.time()
     out_seqs = transformer(input_seqs, input_masks, moral_targets)

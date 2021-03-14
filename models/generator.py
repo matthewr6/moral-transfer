@@ -13,7 +13,7 @@ import pytorch_lightning as pl
 
 from transformers import DistilBertModel, BartModel, BartForConditionalGeneration
 from transformers import BartTokenizerFast, BertTokenizerFast
-from custom_transformer_classifier import OneHotMoralClassifier
+# from custom_transformer_classifier import OneHotMoralClassifier
 # from bart_scorer import BartScorer
 import logging
 import transformers

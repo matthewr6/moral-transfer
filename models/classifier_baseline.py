@@ -73,7 +73,7 @@ class MoralClassifier(torch.nn.Module):
         self.embeddings = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.lstm = nn.LSTM(embedding_dim, hidden_size, batch_first=True)
         self.dropout = nn.Dropout(0.2)
-        self.linear = nn.Linear(hidden_size, 11)
+        self.linear = nn.Linear(hidden_size, 10)
         self.linear1 = nn.Linear(hidden_size, hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
 

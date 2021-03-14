@@ -27,12 +27,12 @@ def train(exp_name, gpus):
     print("Data loaded")
 
     # create datasets
-    train_dataset = NewsDataset(data['train'])
-    val_dataset = NewsDataset(data['val'])
+    train_dataset = NewsDataset(data['train'][0:10])
+    val_dataset = NewsDataset(data['val'][0:10])
     test_dataset = NewsDataset(data['test'])
 
-    train_loader = DataLoader(train_dataset, batch_size=16, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=16, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=8, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=8, num_workers=4)
 
 
     # ------------
@@ -43,18 +43,18 @@ def train(exp_name, gpus):
     discriminator.load_state_dict(torch.load('discriminator_state.pkl'))
     print('Discriminator loaded')
 
-    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False)
+    model = MoralTransformer(lr=1e-5, discriminator=discriminator, freeze_decoder=False, use_content_loss=False)
     # model = MoralTransformer(lr=1e-7, discriminator=discriminator, use_content_loss=True, content_loss_type='cosine')
-    model = MoralTransformer(lr=1e-7, discriminator=discriminator, use_content_loss=True, content_loss_type='pairwise')
+    # model = MoralTransformer(lr=1e-7, discriminator=discriminator, use_content_loss=True, content_loss_type='pairwise')
     # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False)
 
-    # early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
+    early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
     checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
     trainer = Trainer(gpus=gpus, 
                     # auto_lr_find=False, # use to explore LRs
                     # distributed_backend='dp',
                     max_epochs=20,
-                    callbacks=[checkpoint_callback],
+                    callbacks=[checkpoint_callback, early_stop_callback],
                     )
 
     # LR Exploration        
@@ -76,7 +76,8 @@ def train(exp_name, gpus):
 if __name__ == '__main__':
     gpus = 1 if torch.cuda.is_available() else None
     # exp_name = 'moral_and_content_cosine'
-    exp_name = 'moral_and_content_pairwise'
+    # exp_name = 'moral_and_content_pairwise'
+    exp_name = 'discriminator+unfrozen_decoder'
     # exp_name = 'moral_1e-5'
     train(exp_name, gpus)
 

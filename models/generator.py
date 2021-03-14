@@ -116,15 +116,8 @@ class MoralTransformer(pl.LightningModule):
         outputs = F.softmax(outputs, dim=-1)
         return outputs
 
-    def training_step(self, batch, batch_idx):
-        input_seqs = batch['ids']
-        input_masks = batch['mask']
-        moral_targets = batch['targets']
-
-        generated_seqs = self.forward(input_seqs, input_masks, moral_targets)
-        
+    def loss_fn(self, input_seqs, generated_seqs, moral_targets, predicted_morals): 
         # 1. Moral loss
-        predicted_morals = self.discriminator(generated_seqs) 
         moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
 
         # 2. Content loss between generated_seqs and input_seqs
@@ -151,15 +144,65 @@ class MoralTransformer(pl.LightningModule):
         # 3. Final loss
         loss = moral_loss + content_loss
 
+
+
+
+    def training_step(self, batch, batch_idx):
+        input_seqs = batch['ids']
+        input_masks = batch['mask']
+        moral_targets = batch['targets']
+
+        generated_seqs = self.forward(input_seqs, input_masks, moral_targets)
+        predicted_morals = self.discriminator(generated_seqs) 
+
+        loss = self.loss_fn(input_seqs, generated_seqs, moral_targets, predicted_morals)
+
         self.log('train_loss', loss)
         return {'loss': loss}
 
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr)
+    def validation_step(self, batch, batch_nb):
+        input_seqs = batch['ids']
+        input_masks = batch['mask']
+        moral_targets = batch['targets']
+
+        generated_seqs = self.forward(input_seqs, input_masks, moral_targets)
+        predicted_morals = self.discriminator(generated_seqs) 
+
+        loss = self.loss_fn(input_seqs, generated_seqs, moral_targets, predicted_morals)
+        predicted_morals_preds = (predicted_morals >= 0).int()  
+        stats =  {'val_loss': loss, 
+                   'progress_bar': {'val_loss': loss},
+                   'predicted_morals_preds': predicted_morals_preds,
+                   'predicted_morals': predicted_morals,
+                   'moral_targets': moral_targets}
+        
+        self.log('val_loss', loss)
+        return {**stats}
+    
+    def validation_epoch_end(self, outputs):
+        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        moral_targets = torch.cat([x['moral_targets'] for x in outputs])
+        predicted_morals_preds = torch.cat([x['predicted_morals_preds'] for x in outputs])
+        predicted_morals = torch.cat([x['predicted_morals'] for x in outputs])
+
+        accuracy = metrics.accuracy_score(moral_targets.cpu(), predicted_morals_preds.cpu())
+        f1_score_micro = metrics.f1_score(moral_targets.cpu(), predicted_morals_preds.cpu(), average='micro')
+        f1_score_macro = metrics.f1_score(moral_targets.cpu(), predicted_morals_preds.cpu(), average='macro')
+
+        stats = {
+            'acc': accuracy,
+            'f1-micro': f1_score_micro,
+            'f1-macro': f1_score_macro
+            }
+        
+        self.log('val_loss', avg_loss)
+        print(stats)
+        return {**stats}
+    
+
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
-        return optimizer
+        return torch.optim.Adam(self.parameters(), lr=self.lr)
 
     def decode_to_tokens(self, output):
         tokens = torch.argmax(output, 2).cpu().detach().numpy()

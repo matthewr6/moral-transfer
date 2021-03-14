@@ -13,7 +13,8 @@ import pytorch_lightning as pl
 from transformers import DistilBertModel, BartModel
 from transformers import BartTokenizerFast, BertTokenizerFast
 
-from bart import MoralClassifier
+from bart import 
+import bert_score 
 
 # https://arxiv.org/pdf/1903.06353.pdf
 
@@ -48,9 +49,10 @@ class MoralTransformer(pl.LightningModule):
         self.decoder_head = nn.Linear(self.embedding.embedding_dim, self.n_vocab)
 
         # self.discriminator = discriminator
+        self.bert_scorer = bert_score.BERTScorer
 
         # checkpoint = torch.load('../saved_models/classifier_frozen_encoder_lr_1e-4.ckpt')
-        self.discriminator = MoralClassifier.load_from_checkpoint('../saved_models/classifier_frozen_encoder_lr_1e-4.ckpt')
+        self.discriminator = MoralClassifier.load_from_checkpoint('./epoch=7-step=10639.ckpt')
         # self.discriminator.load_state_dict(checkpoint['state_dict'])
 
         self.to_discrim_input = nn.Linear(self.n_vocab, 1) # temporary argmax hack
@@ -60,7 +62,6 @@ class MoralTransformer(pl.LightningModule):
         return torch.transpose(self.embedding(ids), 0, 1).detach()
 
     def forward(self, input_seqs, input_masks, moral_targets, generated_seqs, generated_masks): # create genrated seqs and mask instead to just mask everything??
-        
         copied_morals = torch.unsqueeze(moral_targets, 1).repeat(1, self.seq_len, 1)
 
         encoded = self.encoder(input_seqs, input_masks).last_hidden_state
@@ -85,15 +86,20 @@ class MoralTransformer(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         input_seqs, input_masks, moral_targets, generated_seqs, generated_masks = batch
         
-        generated_seqs = self(input_seqs, input_masks, moral_targets, generated_seqs, generated_masks) # for discriminator and BERTSCORE
+        generated_seqs = self.forward(input_seqs, input_masks, moral_targets, generated_seqs, generated_masks) # for discriminator and BERTSCORE
         
         # 1.  Discriminator outputs
         # TODO: how to feed this in properly
         # discriminator currently expects shape (BATCH_SIZE, seq_len) of type LongTensor (TOKENS)
         # but generator output is (BATCH_SIZE, seq_len, n_vocab) of type FloatTensor     (TOKEN PROBABILITIES)
-        predicted_morals = self.discriminator(generated_seqs)
+        max_elements, max_indexes = torch.max(generated_seqs, dim=2)
+        discriminator_input = max_indexes 
+        predicted_morals = self.discriminator(discriminator_input) 
 
         # 2. BERTSCORE loss between generated_seqs and input_seqs
+        score = self.bert_scorer(generated_seqs,input_seqs, batch_size=batch.shape[0])
+        moral_loss = torch.nn.BCEWithLogitsLoss()(predicted_morals, moral_targets)
+        loss
 
         # 3. Backpropagate through discriminator: BCEWithLogitsLoss(predicted_morals, moral_targets)
 
@@ -116,14 +122,22 @@ if __name__ == '__main__':
     seq_len = 128
     batch_size = 16
 
-    transformer = MoralTransformer(seq_len=seq_len).cuda()
+    # transformer = MoralTransformer(seq_len=seq_len).cuda()
+    transformer = MoralTransformer(seq_len=seq_len)
 
-    input_seqs = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
-    moral_targets = torch.FloatTensor([[1,2,3,4,5]] * batch_size).cuda()
-    generated_seqs = torch.LongTensor([[1] * seq_len] * batch_size).cuda()
+
+    # input_seqs = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
+    # moral_targets = torch.FloatTensor([[1,2,3,4,5]] * batch_size).cuda()
+    # generated_seqs = torch.LongTensor([[1] * seq_len] * batch_size).cuda()
+
+    input_seqs = torch.LongTensor([list(range(seq_len))] * batch_size)
+    input_masks = torch.LongTensor([[1.0] * seq_len] * batch_size)
+    moral_targets = torch.FloatTensor([[1,2,3,4,5]] * batch_size)
+    generated_masks = torch.LongTensor([[0] * seq_len] * batch_size)
+    generated_seqs = torch.LongTensor([[1.0] * seq_len] * batch_size)
 
     now = time.time()
-    out_seqs = transformer(input_seqs, moral_targets, generated_seqs)
+    out_seqs = transformer(input_seqs,input_masks, moral_targets, generated_seqs, generated_masks)
     elapsed = time.time() - now
     print(out_seqs.shape)
 

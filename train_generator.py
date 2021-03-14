@@ -59,13 +59,13 @@ def train(exp_name, gpus):
                     )
 
     # LR Exploration        
-    lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
-    print(lr_finder.results)
-    fig = lr_finder.plot(suggest=True)
-    # fig.show()
-    # fig.savefig('lr.png')
-    new_lr = lr_finder.suggestion()
-    print(new_lr)
+    # lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
+    # print(lr_finder.results)
+    # fig = lr_finder.plot(suggest=True)
+    # # fig.show()
+    # # fig.savefig('lr.png')
+    # new_lr = lr_finder.suggestion()
+    # print(new_lr)
 
     trainer.fit(model, train_loader, val_loader)
     print("Training Done")
@@ -76,7 +76,7 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = 1 if torch.cuda.is_available() else None
-    exp_name = 'test1'
+    exp_name = 'test_new'
     # exp_name = 'moral_and_content_cosine'
     # exp_name = 'moral_and_content_pairwise'
     # exp_name = 'moral_1e-6'

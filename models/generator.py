@@ -150,7 +150,8 @@ class MoralTransformer(pl.LightningModule):
 
         # 3. Final loss
         loss = moral_loss + content_loss
-
+        
+        self.log('train_loss', loss)
         return {'loss': loss}
 
     def configure_optimizers(self):

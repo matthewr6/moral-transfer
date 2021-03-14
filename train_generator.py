@@ -41,7 +41,7 @@ def train(exp_name, gpus):
     hparams = {'lr': LEARNING_RATE}
     print('Loading discriminator...')
     discriminator = OneHotMoralClassifier({}, use_mask=False)
-    discriminator.load_state_dict(torch.load('epoch=5-step=7499.ckpt')['state_dict'])
+    discriminator.load_state_dict(torch.load('discriminator_state.pkl'))
     print('Discriminator loaded')
     model = MoralTransformer(discriminator=discriminator)
     # early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
@@ -54,13 +54,13 @@ def train(exp_name, gpus):
                     )
 
     # LR Exploration        
-    # lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
-    # print(lr_finder.results)
-    # fig = lr_finder.plot(suggest=True)
-    # # fig.show()
-    # # fig.savefig('lr.png')
-    # new_lr = lr_finder.suggestion()
-    # print(new_lr)
+    lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
+    print(lr_finder.results)
+    fig = lr_finder.plot(suggest=True)
+    # fig.show()
+    # fig.savefig('lr.png')
+    new_lr = lr_finder.suggestion()
+    print(new_lr)
 
     trainer.fit(model, train_loader, val_loader)
     print("Training Done")
@@ -71,7 +71,9 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = 1 if torch.cuda.is_available() else None
-    exp_name = 'discriminator_only'
+    # exp_name = 'discriminator_only'
+    # exp_name = 'moral_and_content_loss'
+    exp_name = 'moral_and_content_cosine_loss'
     train(exp_name, gpus)
 
 

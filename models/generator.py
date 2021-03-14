@@ -95,6 +95,12 @@ class MoralTransformer(pl.LightningModule):
         for param in self.discriminator.parameters():
             param.requires_grad = False  
 
+        self.vocab_size = 50264
+        self.onehot_embeddings = nn.Linear(self.vocab_size, 1024, bias=False)
+        self.onehot_embeddings.weight = nn.Parameter(self.discriminator.build_lookups())
+        self.onehot_embeddings.requires_grad = False
+        self.onehot_embeddings.weight.requires_grad = False
+
     def forward(self, input_seqs, input_masks, moral_targets):
         batch_size = input_seqs.shape[0]
         seq_len = input_seqs.shape[1]
@@ -126,10 +132,18 @@ class MoralTransformer(pl.LightningModule):
         moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
 
         # 2. Content loss between generated_seqs and input_seqs
-        # content_loss = self.bart_scorer.calc_bart_score(generated_seqs, input_seqs)
+        input_embeddings = self.encoder(generated_seqs).last_hidden_state
+        input_embeddings = torch.mean(input_embeddings, 1)
+
+        output_embeddings = self.onehot_embeddings(generated_seqs)
+        output_embeddings = self.encoder(inputs_embeds=embedded).last_hidden_state
+        output_embeddings = torch.mean(output_embeddings, 1)
+
+        # content_loss = F.pairwise_distance(input_embeddings, output_embeddings)
+        content_loss = F.cosine_similarity(input_embeddings, output_embeddings)
 
         # 3. Final loss
-        loss = moral_loss
+        loss = moral_loss + content_loss
 
         return {'loss': loss}
 

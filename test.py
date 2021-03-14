@@ -20,15 +20,16 @@ import torch
 def test(path, gpus):
     # load 
     print("Start")
-    file = open('headlines_cnn_bart_split.pkl', 'rb')
+    file = open('headlines_contentmorals_cnn_bart_split.pkl', 'rb')
     data = pickle.load(file)
     file.close()
     print("Data Loaded")
 
     test_dataset = NewsDataset(data['test'])
-    test_loader = DataLoader(test_dataset, batch_size=32, num_workers=4)
+    # test_loader = DataLoader(test_dataset, batch_size=32, num_workers=4)
+    test_loader = DataLoader(test_dataset, batch_size=128, num_workers=4)
 
-    model = MoralClassifier.load_from_checkpoint(path)
+    model = OneHotMoralClassifier.load_from_checkpoint(path)
     trainer = Trainer(gpus=gpus, 
                       distributed_backend='dp')
 
@@ -36,5 +37,5 @@ def test(path, gpus):
     
 if __name__ == '__main__':
     gpus = torch.cuda.device_count() if torch.cuda.is_available() else None
-    path = "./epoch=19-step=26599.ckpt"
+    path = "./epoch=5-step=7499.ckpt"
     test(path, gpus)

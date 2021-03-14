@@ -24,6 +24,7 @@ class OneHotMoralClassifier(pl.LightningModule):
         super(OneHotMoralClassifier, self).__init__()
         self.hparams = args
         self.bart = BartModel.from_pretrained('facebook/bart-large-cnn')
+        self.use_mask = use_mask
 
         self.vocab_size = 50264
         self.onehot_embeddings = nn.Linear(self.vocab_size, 1024, bias=False)
@@ -31,8 +32,11 @@ class OneHotMoralClassifier(pl.LightningModule):
 
         # self.bart.encoder.embed_tokens = nn.Identity()
         # freeze bert weights
+        # self.onehot_embeddings.requires_grad = False
+        # self.onehot_embeddings.weight.requires_grad = False
         # for param in self.bart.parameters():
-        #     param.requires_grad = False        
+        #     param.requires_grad = False
+
         # Pooler
         self.l2 = torch.nn.Linear(1024, 1024)
         self.act = torch.nn.Tanh()
@@ -52,12 +56,13 @@ class OneHotMoralClassifier(pl.LightningModule):
         embedded = self.onehot_embeddings(one_hot_encodings) * self.bart.encoder.embed_scale
         # embedded = self.bart.encoder.embed_positions(embedded)
 
-        if use_mask:
+        if self.use_mask:
             output_1 = self.bart.encoder(inputs_embeds=embedded, attention_mask = mask).last_hidden_state
         else:
             output_1 = self.bart.encoder(inputs_embeds=embedded).last_hidden_state
 
-        output_2 = self.act(self.l2(output_1[:, 0]))
+        pooled = output_1[:, 0]
+        output_2 = self.act(self.l2(pooled))
         output_3 = self.l3(output_2)
         output = self.l4(output_3)
         return output
@@ -133,9 +138,15 @@ class OneHotMoralClassifier(pl.LightningModule):
         y_preds = torch.cat([x['y_preds'] for x in outputs])
         y_hat = torch.cat([x['y_hat'] for x in outputs])
 
-        accuracy = metrics.accuracy_score(y.cpu(), y_preds.cpu())
-        f1_score_micro = metrics.f1_score(y.cpu(), y_preds.cpu(), average='micro')
-        f1_score_macro = metrics.f1_score(y.cpu(), y_preds.cpu(), average='macro')
+        y = y.cpu().detach().numpy()
+        y_preds = y_preds.cpu().detach().numpy()
+
+        for feature_idx in range(y.shape[1]):
+            print(metrics.accuracy_score(y[:, feature_idx], y_preds[:, feature_idx]), metrics.balanced_accuracy_score(y[:, feature_idx], y_preds[:, feature_idx]))
+
+        accuracy = metrics.accuracy_score(y, y_preds)
+        f1_score_micro = metrics.f1_score(y, y_preds, average='micro')
+        f1_score_macro = metrics.f1_score(y, y_preds, average='macro')
 
         stats = {
             'acc': accuracy,

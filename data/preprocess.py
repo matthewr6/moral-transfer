@@ -172,21 +172,21 @@ preprocessing_steps = [
         'out': 'headlines_manual'
     },
 
-    # {
-    #     'in': 'unprocessed',
-    #     'method': add_content_moral_features,
-    #     'out': 'headlines_contentmorals'
-    # },
-    # {
-    #     'in': 'headlines',
-    #     'method': short_cnn_bart_encoding,
-    #     'out': 'headlines_contentmorals_cnn_bart'
-    # },
-    # {
-    #     'in': 'headlines',
-    #     'method': manual_preprocessing,
-    #     'out': 'headlines_contentmorals_manual'
-    # },
+    {
+        'in': 'unprocessed',
+        'method': add_content_moral_features,
+        'out': 'headlines_contentmorals'
+    },
+    {
+        'in': 'headlines_contentmorals',
+        'method': short_cnn_bart_encoding,
+        'out': 'headlines_contentmorals_cnn_bart'
+    },
+    {
+        'in': 'headlines_contentmorals',
+        'method': manual_preprocessing,
+        'out': 'headlines_contentmorals_manual'
+    },
 ]
 
 for step in preprocessing_steps:

@@ -21,7 +21,8 @@ import torch
 
 def train(exp_name, gpus):
     print("Start")
-    file = open('headlines_cnn_bart_split.pkl', 'rb')
+    # file = open('headlines_cnn_bart_split.pkl', 'rb')
+    file = open('data/nela-covid-2020/combined/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
     data = pickle.load(file)
     file.close()
     print("Data Loaded")
@@ -37,6 +38,9 @@ def train(exp_name, gpus):
     train_loader = DataLoader(train_dataset, batch_size=32, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=32, num_workers=4)
 
+    # train_loader = DataLoader(train_dataset, batch_size=16, num_workers=4)
+    # val_loader = DataLoader(val_dataset, batch_size=16, num_workers=4)
+
     # train_loader = DataLoader(embedding_dataset, batch_size=32, num_workers=4)
     # train_loader = DataLoader(embedding_dataset, batch_size=512, num_workers=4)
     # val_loader = DataLoader(embedding_dataset, batch_size=64, num_workers=4)
@@ -47,7 +51,7 @@ def train(exp_name, gpus):
     # ------------
     LEARNING_RATE = 1e-5
     hparams = {'lr': LEARNING_RATE}
-    model = OneHotMoralClassifier(hparams)
+    model = OneHotMoralClassifier(hparams, use_mask=False)
     # model = CustomMoralClassifier(hparams)
     # model = MoralClassifier(hparams)
     # model = PseudoEmbedding(hparams)
@@ -55,19 +59,19 @@ def train(exp_name, gpus):
     checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
     trainer = Trainer(gpus=gpus, 
                     # auto_lr_find=False, # use to explore LRs
-                    distributed_backend='dp',
+                    # distributed_backend='dp',
                     max_epochs=20, 
                     callbacks=[early_stop_callback, checkpoint_callback],
                     )
 
     # LR Exploration        
-    # lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
-    # print(lr_finder.results)
-    # fig = lr_finder.plot(suggest=True)
+    lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
+    print(lr_finder.results)
+    fig = lr_finder.plot(suggest=True)
     # fig.show()
     # fig.savefig('lr.png')
-    # new_lr = lr_finder.suggestion()
-    # print(new_lr)
+    new_lr = lr_finder.suggestion()
+    print(new_lr)
 
     trainer.fit(model, train_loader, val_loader)
     print("Training Done")
@@ -77,8 +81,8 @@ def train(exp_name, gpus):
 # ------------
 
 if __name__ == '__main__':
-    gpus = torch.cuda.device_count() if torch.cuda.is_available() else None
-    exp_name = 'modified_classifier_maskless'
+    gpus = 1 if torch.cuda.is_available() else None
+    exp_name = 'modified_classifier_maskless_contentmorals'
     train(exp_name, gpus)
 
 

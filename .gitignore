@@ -9,3 +9,4 @@ experiments/
 *.tsv
 saved_models/
 push_to_remote.sh
+sftp-config.json

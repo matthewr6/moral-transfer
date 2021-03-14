@@ -7,9 +7,10 @@ train_percent = 80
 test_percent = 10
 val_percent = 10
 
-def split_data(data):
-    n = len(data)
+def split_data(data, keep=50000):
     random.shuffle(data)
+    data = data[:keep]
+    n = len(data)
     train_count = int(n * train_percent / 100)
     test_count = int(n * test_percent / 100)
     return {
@@ -18,10 +19,11 @@ def split_data(data):
         'val': data[train_count + test_count:]
     }
 
-# datadir = 'nela-covid-2020/combined'
-datadir = 'nela-elections-2020/combined'
+datadir = 'nela-covid-2020/combined'
+# datadir = 'nela-elections-2020/combined'
 
-for datafile in glob.glob('{}/*.pkl'.format(datadir)):
+# for datafile in glob.glob('{}/*.pkl'.format(datadir)):
+for datafile in ['{}/headlines_contentmorals_cnn_bart.pkl'.format(datadir)]:
     if '_split.pkl' in datafile:
         continue
     basename = os.path.basename(datafile).split('.')[0]

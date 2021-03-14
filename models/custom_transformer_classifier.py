@@ -52,7 +52,7 @@ class OneHotMoralClassifier(pl.LightningModule):
     def loss_fn(self, outputs, targets):
         return nn.BCEWithLogitsLoss()(outputs, targets)
 
-    def forward(self, one_hot_encodings, mask):
+    def forward(self, one_hot_encodings, mask=None):
         embedded = self.onehot_embeddings(one_hot_encodings) * self.bart.encoder.embed_scale
         # embedded = self.bart.encoder.embed_positions(embedded)
 

@@ -1,5 +1,6 @@
 import os
 import time
+import sys
 import torch
 from tqdm import tqdm
 import numpy as np
@@ -60,6 +61,8 @@ class MoralTransformer(pl.LightningModule):
         # Load pretrained model
         # self.pretrained = BartModel.from_pretrained('facebook/bart-large-cnn')
         self.pretrained = BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn').cuda()
+        # print(self.pretrained)
+        # sys.exit()
 
         self.encoder = self.pretrained.model.encoder
         self.embedding = self.pretrained.model.shared
@@ -72,9 +75,10 @@ class MoralTransformer(pl.LightningModule):
         self.n_encoder_features = self.encoder.layernorm_embedding.normalized_shape[0]
 
         # Linear layer to combine encodings and moral features
-        self.linears = [nn.Linear(self.n_encoder_features + moral_vec_size, self.embedding.embedding_dim)]
-        for i in range(n_contextual_linear - 1):
-            self.linears.append(nn.Linear(self.embedding.embedding_dim, self.embedding.embedding_dim))
+        # self.linears = [nn.Linear(self.n_encoder_features + moral_vec_size, self.embedding.embedding_dim)]
+        self.linear = nn.Linear(self.n_encoder_features + moral_vec_size, self.embedding.embedding_dim)
+        # for i in range(n_contextual_linear - 1):
+        #     self.linears.append(nn.Linear(self.embedding.embedding_dim, self.embedding.embedding_dim))
 
         # Decoder
         if bart_decoder:
@@ -88,9 +92,6 @@ class MoralTransformer(pl.LightningModule):
 
         self.lm_head = self.pretrained.lm_head
 
-
-        # self.discriminator = OneHotMoralClassifier(use_mask=False)
-        # self.discriminator.load_state_dict(torch.load('../saved_models/onehot_classifier.state'))
         self.discriminator = discriminator
 
     def forward(self, input_seqs, input_masks, moral_targets):
@@ -99,18 +100,17 @@ class MoralTransformer(pl.LightningModule):
         encoded = self.encoder(input_seqs, input_masks).last_hidden_state
         encoded = torch.cat((encoded, copied_morals), 2)
 
-        for linear in self.linears:
-            encoded = linear(encoded)
+        # import ipdb;ipdb.set_trace()
+        # for linear in self.linears:
+        #     encoded = linear(encoded)
+        encoded = self.linear(encoded)
 
         generated_seqs = torch.LongTensor([[PADDING_TOK] * self.seq_len] * input_seqs.shape[0]).cuda()
         generated_masks = torch.LongTensor([[MASK] * input_seqs.shape[1]] * input_seqs.shape[0]).cuda()
-        decoded = self.decoder(input_ids=generated_seqs, attention_mask=generated_masks, encoder_hidden_states=encoded, encoder_attention_mask=input_masks)
+        decoded = self.decoder(input_ids=generated_seqs, attention_mask=generated_masks, encoder_hidden_states=encoded, encoder_attention_mask=input_masks).last_hidden_state
 
-        head = self.lm_head(decoded)
-        outputs = F.softmax(head, dim=-1)
-        # return outputs
-
-        outputs = self.discriminator(outputs)
+        outputs = self.lm_head(decoded)
+        outputs = F.softmax(outputs, dim=-1)
         return outputs
 
     def training_step(self, batch, batch_idx):
@@ -155,8 +155,9 @@ if __name__ == '__main__':
     seq_len = 128
     batch_size = 16
 
-    # transformer = MoralTransformer(seq_len=seq_len).cuda()
-    transformer = MoralTransformer(seq_len=seq_len)
+    discriminator = OneHotMoralClassifier({}, use_mask=False)
+    discriminator.load_state_dict(torch.load('epoch=5-step=7499.ckpt')['state_dict'])
+    transformer = MoralTransformer(seq_len=seq_len, discriminator=discriminator).cuda()
 
     input_seqs = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
     input_masks = torch.LongTensor([[UNMASK] * seq_len] * batch_size).cuda()

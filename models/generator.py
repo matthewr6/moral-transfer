@@ -116,12 +116,10 @@ class MoralTransformer(pl.LightningModule):
         outputs = F.softmax(outputs, dim=-1)
         return outputs
 
-    # def training_step(self, batch, batch_idx):
-        # input_seqs = batch['ids']
-        # input_masks = batch['mask']
-        # moral_targets = batch['targets']
-    def training_step(self, input_seqs, input_masks, moral_targets):        
-        generated_seqs = self.forward(input_seqs, input_masks, moral_targets) # for discriminator and BERTSCORE
+    def training_step(self, batch, batch_idx):
+        input_seqs = batch['ids']
+        input_masks = batch['mask']
+        moral_targets = batch['targets']
         
         # 1. Moral loss
         predicted_morals = self.discriminator(generated_seqs) 

@@ -142,7 +142,7 @@ class MoralTransformer(pl.LightningModule):
                 unit_input = F.normalize(input_embeddings)
                 unit_output = F.normalize(output_embeddings)
                 content_loss = F.pairwise_distance(unit_input, unit_output) / 2
-
+            content_loss = torch.mean(content_loss)
         else:
             content_loss = 0
 

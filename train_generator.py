@@ -19,7 +19,8 @@ from data import NewsDataset
 
 def train(exp_name, gpus):
     print("Loading data...")
-    file = open('data/nela-covid-2020/combined/headlines_cnn_bart_split.pkl', 'rb')
+    # file = open('data/nela-covid-2020/combined/headlines_cnn_bart_split.pkl', 'rb')
+    file = open('headlines_cnn_bart_split.pkl', 'rb')
     # file = open('data/nela-covid-2020/combined/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
     data = pickle.load(file)
     file.close()
@@ -49,12 +50,12 @@ def train(exp_name, gpus):
     # model = MoralTransformer(lr=1e-6, discriminator=discriminator, use_content_loss=False)
 
     # early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
-    # checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
+    checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
     trainer = Trainer(gpus=gpus, 
                     # auto_lr_find=False, # use to explore LRs
                     # distributed_backend='dp',
                     max_epochs=20, 
-                    # callbacks=[early_stop_callback, checkpoint_callback],
+                    callbacks=[checkpoint_callback],
                     )
 
     # LR Exploration        

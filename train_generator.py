@@ -27,7 +27,7 @@ def train(exp_name, gpus):
     print("Data loaded")
 
     # create datasets
-    train_dataset = NewsDataset(data['train'])
+    train_dataset = NewsDataset(data['train'][0:10])
     val_dataset = NewsDataset(data['val'])
     test_dataset = NewsDataset(data['test'])
 
@@ -43,8 +43,8 @@ def train(exp_name, gpus):
     discriminator.load_state_dict(torch.load('discriminator_state.pkl'))
     print('Discriminator loaded')
 
-    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False)
-    model = MoralTransformer(lr=1e-5, discriminator=discriminator, freeze_decoder=False, use_content_loss=False)
+    model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False)
+    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, freeze_decoder=False, use_content_loss=False)
     # model = MoralTransformer(lr=1e-7, discriminator=discriminator, use_content_loss=True, content_loss_type='cosine')
     # model = MoralTransformer(lr=1e-7, discriminator=discriminator, use_content_loss=True, content_loss_type='pairwise')
     # model = MoralTransformer(lr=1e-6, discriminator=discriminator, use_content_loss=False)
@@ -76,7 +76,7 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = 1 if torch.cuda.is_available() else None
-    exp_name = 'discriminator+unfrozen_decoder'
+    exp_name = 'test1'
     # exp_name = 'moral_and_content_cosine'
     # exp_name = 'moral_and_content_pairwise'
     # exp_name = 'moral_1e-6'

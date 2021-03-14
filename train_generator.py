@@ -37,13 +37,14 @@ def train(exp_name, gpus):
     # ------------
     # training
     # ------------
-    LEARNING_RATE = 1e-7
+    # LEARNING_RATE = 1e-7
+    LEARNING_RATE = 1e-6
     hparams = {'lr': LEARNING_RATE}
     print('Loading discriminator...')
     discriminator = OneHotMoralClassifier({}, use_mask=False)
     discriminator.load_state_dict(torch.load('discriminator_state.pkl'))
     print('Discriminator loaded')
-    model = MoralTransformer(discriminator=discriminator)
+    model = MoralTransformer(discriminator=discriminator, use_content_loss=False, content_loss_type='pairwise')
     # early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
     # checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
     trainer = Trainer(gpus=gpus, 
@@ -71,9 +72,10 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = 1 if torch.cuda.is_available() else None
-    # exp_name = 'discriminator_only'
-    # exp_name = 'moral_and_content_loss'
-    exp_name = 'moral_and_content_cosine_loss'
+    # exp_name = 'moral'
+    # exp_name = 'moral_and_content_cosine'
+    exp_name = 'moral_and_content_pairwise'
+    # exp_name = 'moral_1e-6'
     train(exp_name, gpus)
 
 

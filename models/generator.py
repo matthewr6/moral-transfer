@@ -120,6 +120,8 @@ class MoralTransformer(pl.LightningModule):
         input_seqs = batch['ids']
         input_masks = batch['mask']
         moral_targets = batch['targets']
+
+        generated_seqs = self.forward(input_seqs, input_masks, moral_targets)
         
         # 1. Moral loss
         predicted_morals = self.discriminator(generated_seqs) 

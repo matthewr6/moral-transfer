@@ -134,11 +134,11 @@ class MoralTransformer(pl.LightningModule):
         moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
 
         # 2. Content loss between generated_seqs and input_seqs
-        input_embeddings = self.encoder(generated_seqs).last_hidden_state
+        input_embeddings = self.encoder(input_seqs).last_hidden_state
         input_embeddings = torch.mean(input_embeddings, 1)
 
         output_embeddings = self.onehot_embeddings(generated_seqs)
-        output_embeddings = self.encoder(inputs_embeds=embedded).last_hidden_state
+        output_embeddings = self.encoder(inputs_embeds=output_embeddings).last_hidden_state
         output_embeddings = torch.mean(output_embeddings, 1)
 
         if self.use_content_loss:

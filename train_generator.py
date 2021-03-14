@@ -44,17 +44,16 @@ def train(exp_name, gpus):
     print('Discriminator loaded')
 
     model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False)
-    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, freeze_decoder=False, use_content_loss=False)
     # model = MoralTransformer(lr=1e-7, discriminator=discriminator, use_content_loss=True, content_loss_type='cosine')
-    # model = MoralTransformer(lr=1e-7, discriminator=discriminator, use_content_loss=True, content_loss_type='pairwise')
-    # model = MoralTransformer(lr=1e-6, discriminator=discriminator, use_content_loss=False)
+    model = MoralTransformer(lr=1e-7, discriminator=discriminator, use_content_loss=True, content_loss_type='pairwise')
+    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False)
 
     # early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
     checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
     trainer = Trainer(gpus=gpus, 
                     # auto_lr_find=False, # use to explore LRs
                     # distributed_backend='dp',
-                    max_epochs=20, 
+                    max_epochs=20,
                     callbacks=[checkpoint_callback],
                     )
 
@@ -78,8 +77,8 @@ if __name__ == '__main__':
     gpus = 1 if torch.cuda.is_available() else None
     exp_name = 'test_new'
     # exp_name = 'moral_and_content_cosine'
-    # exp_name = 'moral_and_content_pairwise'
-    # exp_name = 'moral_1e-6'
+    exp_name = 'moral_and_content_pairwise'
+    # exp_name = 'moral_1e-5'
     train(exp_name, gpus)
 
 

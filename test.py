@@ -12,7 +12,7 @@ from sklearn import metrics
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from models import MoralClassifier
-from models.custom_transformer_classifier import OneHotMoralClassifier
+from models import OneHotMoralClassifier
 from data import NewsDataset
 import torch
 

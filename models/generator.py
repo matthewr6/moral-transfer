@@ -123,6 +123,7 @@ class MoralTransformer(pl.LightningModule):
         
         # 1. Moral loss
         predicted_morals = self.discriminator(generated_seqs) 
+        moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
 
         # 2. Content loss between generated_seqs and input_seqs
         # content_loss = self.bart_scorer.calc_bart_score(generated_seqs, input_seqs)

@@ -71,7 +71,7 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = 1 if torch.cuda.is_available() else None
-    exp_name = 'GEN_TEST'
+    exp_name = 'discriminator_only'
     train(exp_name, gpus)
 
 

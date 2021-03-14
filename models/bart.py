@@ -51,7 +51,6 @@ class MoralClassifier(pl.LightningModule):
     def loss_fn(self, outputs, targets):
         return torch.nn.BCEWithLogitsLoss()(outputs, targets)
 
-    # def forward(self, ids):
     def forward(self, ids, mask):
         output_1 = self.l1.encoder(ids, attention_mask = mask).last_hidden_state
         output_2 = self.act(self.l2(output_1[:, 0]))

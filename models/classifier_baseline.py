@@ -40,8 +40,10 @@ class NewsDataset(Dataset):
 
 
 print("Start")
-file = open('../data/nela-covid-2020/combined/headlines_manual.pkl', 'rb')
-data = pickle.load(file)
+# file = open('../data/nela-covid-2020/combined/headlines_manual.pkl', 'rb')
+# data = pickle.load(file)
+file = open('../data/nela-covid-2020/content/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
+data = pickle.load(file)['train']
 data = [d for d in data if sum(d['moral_features'])]
 file.close()
 print("Data Loaded")
@@ -66,12 +68,12 @@ print(len(training_loader))
 
 
 class MoralClassifier(torch.nn.Module):
-    def __init__(self, vocab_size, hidden_size=128, embedding_dim=32):
+    def __init__(self, vocab_size, hidden_size=512, embedding_dim=256):
         super(MoralClassifier, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.lstm = nn.LSTM(embedding_dim, hidden_size, batch_first=True)
         self.dropout = nn.Dropout(0.2)
-        self.linear = nn.Linear(hidden_size, 11)
+        self.linear = nn.Linear(hidden_size, 10)
         self.linear1 = nn.Linear(hidden_size, hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
 

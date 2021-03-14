@@ -13,6 +13,29 @@ import pytorch_lightning as pl
 from transformers import DistilBertModel, BartModel, BartForConditionalGeneration
 from transformers import BartTokenizerFast, BertTokenizerFast
 
+# from bart_scorer import BartScorer
+import logging
+import transformers
+from bert_score import score
+import bert_score
+
+# @inproceedings{bert-score,
+#   title={BERTScore: Evaluating Text Generation with BERT},
+#   author={Tianyi Zhang* and Varsha Kishore* and Felix Wu* and Kilian Q. Weinberger and Yoav Artzi},
+#   booktitle={International Conference on Learning Representations},
+#   year={2020},
+#   url={https://openreview.net/forum?id=SkeHuCVFDr}
+# }
+
+class BartScorer():
+    def __init__(self):
+        self.bart_scorer = bert_score.BERTScorer(model_type="facebook/bart-large-cnn")
+
+    def calc_bart_score(self, candidates, references):
+        # turn verbose=True on if we want status updates such as "preparing IDF dict"
+        P, R, F1 = self.bart_scorer.score(candidates, references)
+        return F1.mean()
+
 from bart import MoralClassifier
 from custom_transformer_classifier import OneHotMoralClassifier
 
@@ -32,6 +55,7 @@ class MoralTransformer(pl.LightningModule):
         super().__init__()
         self.seq_len = seq_len
         self.tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
+        self.bart_scorer = BartScorer()
 
         # Load pretrained model
         # self.pretrained = BartModel.from_pretrained('facebook/bart-large-cnn')
@@ -64,6 +88,7 @@ class MoralTransformer(pl.LightningModule):
 
         self.lm_head = self.pretrained.lm_head
 
+
         # self.discriminator = OneHotMoralClassifier(use_mask=False)
         # self.discriminator.load_state_dict(torch.load('../saved_models/onehot_classifier.state'))
         self.discriminator = discriminator
@@ -91,10 +116,18 @@ class MoralTransformer(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         input_seqs, input_masks, moral_targets, generated_seqs, generated_masks = batch
         
-        generated_seqs = self(input_seqs, input_masks, moral_targets, generated_seqs, generated_masks) # for discriminator and BERTSCORE
+        generated_seqs = self.forward(input_seqs, input_masks, moral_targets, generated_seqs, generated_masks) # for discriminator and BERTSCORE
         
         # 1.  Discriminator outputs
-        predicted_morals = self.discriminator(generated_seqs)
+        # TODO: how to feed this in properly
+        # discriminator currently expects shape (BATCH_SIZE, seq_len) of type LongTensor (TOKENS)
+        # but generator output is (BATCH_SIZE, seq_len, n_vocab) of type FloatTensor     (TOKEN PROBABILITIES)
+        max_elements, max_indexes = torch.max(generated_seqs, dim=2)
+        discriminator_input = max_indexes 
+        predicted_morals = self.discriminator(discriminator_input) 
+
+        # 2. BARTSCORE loss between generated_seqs and input_seqs
+        content_loss = self.bart_scorer.calc_bart_score(generated_seqs, input_seqs)
         moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
 
         # 2. BERTSCORE loss between generated_seqs and input_seqs
@@ -122,7 +155,8 @@ if __name__ == '__main__':
     seq_len = 128
     batch_size = 16
 
-    transformer = MoralTransformer(seq_len=seq_len).cuda()
+    # transformer = MoralTransformer(seq_len=seq_len).cuda()
+    transformer = MoralTransformer(seq_len=seq_len)
 
     input_seqs = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()
     input_masks = torch.LongTensor([[UNMASK] * seq_len] * batch_size).cuda()

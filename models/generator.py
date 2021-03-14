@@ -13,13 +13,9 @@ import pytorch_lightning as pl
 from transformers import DistilBertModel, BartModel
 from transformers import BartTokenizerFast, BertTokenizerFast
 
-<<<<<<< HEAD
-from bart import 
-import bert_score 
-=======
+from bart_scorer import BartScorer
 from bart import MoralClassifier
 from custom_transformer_classifier import OneHotMoralClassifier
->>>>>>> c47a6c914a72db5938e5e197cf987d4a28bb711f
 
 # https://arxiv.org/pdf/1903.06353.pdf
 
@@ -29,7 +25,6 @@ MASK_TOK = 3 # is this correct?
 
 # Stacks moral vector with encoded representation, prior to decoder.
 class MoralTransformer(pl.LightningModule):
-
     def __init__(self, seq_len=128, moral_vec_size=5, discriminator=None, freeze_encoder=True, bart_decoder=True, freeze_decoder=True):
         super().__init__()
         self.seq_len = seq_len
@@ -37,7 +32,6 @@ class MoralTransformer(pl.LightningModule):
 
         # Load pretrained model
         self.pretrained = BartModel.from_pretrained('facebook/bart-large-cnn')
-
         self.encoder = self.pretrained.encoder
         self.encoder.requires_grad = False
         self.embedding = self.pretrained.shared
@@ -63,7 +57,7 @@ class MoralTransformer(pl.LightningModule):
                 param.requires_grad = False
 
         # self.discriminator = discriminator
-        self.bert_scorer = bert_score.BERTScorer
+        self.bart_scorer = BartScorer()
         self.decoder_head = nn.Linear(self.embedding.embedding_dim, self.n_vocab)
 
         self.discriminator = OneHotMoralClassifier(use_mask=False)
@@ -106,9 +100,8 @@ class MoralTransformer(pl.LightningModule):
         discriminator_input = max_indexes 
         predicted_morals = self.discriminator(discriminator_input) 
 
-        # 2. BERTSCORE loss between generated_seqs and input_seqs
-        score = self.bert_scorer(generated_seqs,input_seqs, batch_size=batch.shape[0])
-        content_loss = 1 - score[2]
+        # 2. BARTSCORE loss between generated_seqs and input_seqs
+        content_loss = self.bart_scorer.calc_bart_score(generated_seqs, input_seqs)
         moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
 
         # 2. BERTSCORE loss between generated_seqs and input_seqs

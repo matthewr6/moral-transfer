@@ -13,20 +13,13 @@ import pytorch_lightning as pl
 
 from transformers import DistilBertModel, BartModel, BartForConditionalGeneration
 from transformers import BartTokenizerFast, BertTokenizerFast
-
+from custom_transformer_classifier import OneHotMoralClassifier
 # from bart_scorer import BartScorer
 import logging
 import transformers
 from bert_score import score
 import bert_score
 
-# @inproceedings{bert-score,
-#   title={BERTScore: Evaluating Text Generation with BERT},
-#   author={Tianyi Zhang* and Varsha Kishore* and Felix Wu* and Kilian Q. Weinberger and Yoav Artzi},
-#   booktitle={International Conference on Learning Representations},
-#   year={2020},
-#   url={https://openreview.net/forum?id=SkeHuCVFDr}
-# }
 
 class BartScorer():
     def __init__(self):
@@ -123,6 +116,7 @@ class MoralTransformer(pl.LightningModule):
         return outputs
 
     def training_step(self, batch, batch_idx):
+        import pdb; pdb.set_trace()
         input_seqs = batch['ids']
         input_masks = batch['mask']
         moral_targets = batch['targets']
@@ -144,8 +138,13 @@ class MoralTransformer(pl.LightningModule):
         if self.use_content_loss:
             if self.content_loss_type == 'cosine':
                 content_loss = F.cosine_similarity(input_embeddings, output_embeddings)
-            else:
+            elif self.content_loss_type == 'pairwise': 
                 content_loss = F.pairwise_distance(input_embeddings, output_embeddings)
+            else: 
+                unit_input = F.normalize(input_embeddings)
+                unit_output = F.normalize(output_embeddings)
+                content_loss = F.pairwise_distance(input_embeddings, output_embeddings) /  self.n_encoder_features
+
         else:
             content_loss = 0
 
@@ -175,7 +174,7 @@ if __name__ == '__main__':
     batch_size = 16
 
     discriminator = OneHotMoralClassifier({}, use_mask=False)
-    discriminator.load_state_dict(torch.load('epoch=5-step=7499.ckpt')['state_dict'])
+    discriminator.load_state_dict(torch.load('discriminator_state.pkl'))
     transformer = MoralTransformer(seq_len=seq_len, discriminator=discriminator).cuda()
 
     input_seqs = torch.LongTensor([list(range(seq_len))] * batch_size).cuda()

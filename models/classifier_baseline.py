@@ -66,7 +66,7 @@ print(len(training_loader))
 
 
 class MoralClassifier(torch.nn.Module):
-    def __init__(self, vocab_size, hidden_size=4, embedding_dim=8):
+    def __init__(self, vocab_size, hidden_size=512, embedding_dim=256):
         super(MoralClassifier, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.lstm = nn.LSTM(embedding_dim, hidden_size, batch_first=True)

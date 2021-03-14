@@ -19,9 +19,9 @@ from transformers import BartModel, BartConfig
 
 device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
-class CustomMoralClassifier(pl.LightningModule):
-    def __init__(self, args):
-        super(CustomMoralClassifier, self).__init__()
+class OneHotMoralClassifier(pl.LightningModule):
+    def __init__(self, args, use_mask=True):
+        super(OneHotMoralClassifier, self).__init__()
         self.hparams = args
         self.bart = BartModel.from_pretrained('facebook/bart-large-cnn')
 
@@ -52,7 +52,10 @@ class CustomMoralClassifier(pl.LightningModule):
         embedded = self.onehot_embeddings(one_hot_encodings) * self.bart.encoder.embed_scale
         # embedded = self.bart.encoder.embed_positions(embedded)
 
-        output_1 = self.bart.encoder(inputs_embeds=embedded, attention_mask = mask).last_hidden_state
+        if use_mask:
+            output_1 = self.bart.encoder(inputs_embeds=embedded, attention_mask = mask).last_hidden_state
+        else:
+            output_1 = self.bart.encoder(inputs_embeds=embedded).last_hidden_state
 
         output_2 = self.act(self.l2(output_1[:, 0]))
         output_3 = self.l3(output_2)

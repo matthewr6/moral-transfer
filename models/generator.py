@@ -163,7 +163,6 @@ class MoralTransformer(pl.LightningModule):
         return {'loss': loss}
 
     def validation_step(self, batch, batch_nb):
-        import pdb; pdb.set_trace()
         input_seqs = batch['ids']
         input_masks = batch['mask']
         moral_targets = batch['targets']
@@ -183,7 +182,6 @@ class MoralTransformer(pl.LightningModule):
         return {**stats}
     
     def validation_epoch_end(self, outputs):
-        import pdb; pdb.set_trace()
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         moral_targets = torch.cat([x['moral_targets'] for x in outputs])
         predicted_morals_preds = torch.cat([x['predicted_morals_preds'] for x in outputs])

@@ -143,6 +143,7 @@ class MoralTransformer(pl.LightningModule):
 
         # 3. Final loss
         loss = moral_loss + content_loss
+        return loss
 
 
 

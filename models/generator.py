@@ -140,7 +140,7 @@ class MoralTransformer(pl.LightningModule):
                 content_loss = F.cosine_similarity(input_embeddings, output_embeddings)
             elif self.content_loss_type == 'pairwise': 
                 content_loss = F.pairwise_distance(input_embeddings, output_embeddings)
-            elif self.content_loss_type.content_loss_type="normalized_pairwise": # normalized Euclidean Distance
+            elif self.content_loss_type.content_loss_type == "normalized_pairwise": # normalized Euclidean Distance
                 unit_input = F.normalize(input_embeddings)
                 unit_output = F.normalize(output_embeddings)
                 content_loss = F.pairwise_distance(unit_input, unit_output) / 2

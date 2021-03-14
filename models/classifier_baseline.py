@@ -40,7 +40,8 @@ class NewsDataset(Dataset):
 
 
 print("Start")
-file = open('../data/nela-covid-2020/combined/headlines_manual.pkl', 'rb')
+# file = open('../data/nela-covid-2020/combined/headlines_manual.pkl', 'rb')
+file = open('../data/nela-covid-2020/content/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
 data = pickle.load(file)
 data = [d for d in data if sum(d['moral_features'])]
 file.close()

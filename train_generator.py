@@ -19,8 +19,7 @@ from data import NewsDataset
 
 def train(exp_name, gpus):
     print("Loading data...")
-    # file = open('data/nela-covid-2020/combined/headlines_cnn_bart_split.pkl', 'rb')
-    file = open('headlines_cnn_bart_split.pkl', 'rb')
+    file = open('data/nela-covid-2020/combined/headlines_cnn_bart_split.pkl', 'rb')
     # file = open('data/nela-covid-2020/combined/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
     data = pickle.load(file)
     file.close()
@@ -40,13 +39,13 @@ def train(exp_name, gpus):
     # ------------
     print('Loading discriminator...')
     discriminator = OneHotMoralClassifier({}, use_mask=False)
-    discriminator.load_state_dict(torch.load('discriminator_state.pkl'))
+    discriminator.load_state_dict(torch.load('discriminator_titlemorals_state.pkl'))
     print('Discriminator loaded')
 
-    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False)
-    # model = MoralTransformer(lr=1e-7, discriminator=discriminator, use_content_loss=True, content_loss_type='cosine')
-    model = MoralTransformer(lr=1e-7, discriminator=discriminator, use_content_loss=True, content_loss_type='pairwise')
-    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False)
+    # model = MoralTransformer(lr=1e-3, discriminator=discriminator, use_content_loss=False)
+    # model = MoralTransformer(lr=1e-3, discriminator=discriminator, use_content_loss=True, content_loss_type='cosine')
+    # model = MoralTransformer(lr=1e-6, discriminator=discriminator, use_content_loss=True, content_loss_type='normalized_pairwise')
+    model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False)
 
     # early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
     checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
@@ -75,9 +74,10 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = 1 if torch.cuda.is_available() else None
-    # exp_name = 'moral_and_content_cosine'
-    exp_name = 'moral_and_content_pairwise'
-    # exp_name = 'moral_1e-5'
+    # exp_name = 'moral' # lr 1e-3
+    # exp_name = 'moral_and_content_cosine' # lr 1e-3
+    exp_name = 'moral_and_content_pairwise' # lr 1e-6
+    exp_name = 'moral_lr1e-5'
     train(exp_name, gpus)
 
 

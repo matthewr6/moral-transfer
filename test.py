@@ -35,5 +35,5 @@ def test(path, gpus):
     
 if __name__ == '__main__':
     gpus = torch.cuda.device_count() if torch.cuda.is_available() else None
-    path = "./epoch=19-step=26599.ckpt"
+    path = "./epoch=7-step=10639.ckpt"
     test(path, gpus)

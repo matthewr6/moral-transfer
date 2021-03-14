@@ -37,5 +37,5 @@ def test(path, gpus):
     
 if __name__ == '__main__':
     gpus = torch.cuda.device_count() if torch.cuda.is_available() else None
-    path = "./epoch=5-step=7499.ckpt"
+    path = "./discriminator_state.pkl"
     test(path, gpus)

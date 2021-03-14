@@ -120,9 +120,7 @@ class MoralTransformer(pl.LightningModule):
         # input_seqs = batch['ids']
         # input_masks = batch['mask']
         # moral_targets = batch['targets']
-    def training_step(self, input_seqs, input_masks, moral_targets):
-        import pdb; pdb.set_trace()
-        
+    def training_step(self, input_seqs, input_masks, moral_targets):        
         generated_seqs = self.forward(input_seqs, input_masks, moral_targets) # for discriminator and BERTSCORE
         
         # 1. Moral loss

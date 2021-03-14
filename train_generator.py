@@ -31,8 +31,8 @@ def train(exp_name, gpus):
     val_dataset = NewsDataset(data['val'])
     test_dataset = NewsDataset(data['test'])
 
-    train_loader = DataLoader(train_dataset, batch_size=16, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=16, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=8, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=8, num_workers=4)
 
 
     # ------------

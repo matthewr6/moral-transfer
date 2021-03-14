@@ -38,7 +38,7 @@ class MoralClassifier(pl.LightningModule):
         super(MoralClassifier, self).__init__()
         self.hparams = args
         self.l1 = BartModel.from_pretrained('facebook/bart-large-cnn')
-        # freeze bert weights
+        # freeze bart weights
         # for param in self.l1.parameters():
         #     param.requires_grad = False        
         # Pooler

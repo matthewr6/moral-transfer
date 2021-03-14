@@ -49,10 +49,11 @@ UNMASK = 1
 # Stacks moral vector with encoded representation, prior to decoder.
 class MoralTransformer(pl.LightningModule):
 
-    def __init__(self, lr=0.001, discriminator=None, bart_decoder=True, freeze_encoder=True, freeze_decoder=True, n_contextual_linear=2, moral_vec_size=10):
+    def __init__(self, lr=0.001, discriminator=None, bart_decoder=True, freeze_encoder=True, freeze_decoder=True, n_contextual_linear=2, moral_vec_size=10, use_content_loss=False):
         super().__init__()
         assert n_contextual_linear >= 1
         self.lr = lr
+        self.use_content_loss =
         self.tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
         self.bart_scorer = BartScorer()
 
@@ -140,7 +141,10 @@ class MoralTransformer(pl.LightningModule):
         output_embeddings = torch.mean(output_embeddings, 1)
 
         # content_loss = F.pairwise_distance(input_embeddings, output_embeddings)
-        content_loss = F.cosine_similarity(input_embeddings, output_embeddings)
+        if self.use_content_loss:
+            content_loss = F.cosine_similarity(input_embeddings, output_embeddings)
+        else:
+            content_loss = 0
 
         # 3. Final loss
         loss = moral_loss + content_loss

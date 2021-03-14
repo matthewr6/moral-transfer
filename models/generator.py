@@ -49,11 +49,10 @@ UNMASK = 1
 # Stacks moral vector with encoded representation, prior to decoder.
 class MoralTransformer(pl.LightningModule):
 
-    def __init__(self, lr=0.001, discriminator=None, bart_decoder=True, freeze_encoder=True, freeze_decoder=True, n_contextual_linear=2, seq_len=128, moral_vec_size=10):
+    def __init__(self, lr=0.001, discriminator=None, bart_decoder=True, freeze_encoder=True, freeze_decoder=True, n_contextual_linear=2, moral_vec_size=10):
         super().__init__()
         assert n_contextual_linear >= 1
         self.lr = lr
-        self.seq_len = seq_len
         self.tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
         self.bart_scorer = BartScorer()
 
@@ -97,17 +96,18 @@ class MoralTransformer(pl.LightningModule):
             param.requires_grad = False  
 
     def forward(self, input_seqs, input_masks, moral_targets):
-        copied_morals = torch.unsqueeze(moral_targets, 1).repeat(1, input_seqs.shape[1], 1)
+        batch_size = input_seqs.shape[0]
+        seq_len = input_seqs.shape[1]
+        copied_morals = torch.unsqueeze(moral_targets, 1).repeat(1, seq_len, 1)
 
         encoded = self.encoder(input_seqs, input_masks).last_hidden_state
-        print(encoded.shape, copied_morals.shape)
         encoded = torch.cat((encoded, copied_morals), 2)
 
         for linear in self.linears:
             encoded = linear(encoded)
 
-        generated_seqs = torch.LongTensor([[PADDING_TOK] * self.seq_len] * input_seqs.shape[0]).cuda()
-        generated_masks = torch.LongTensor([[MASK] * input_seqs.shape[1]] * input_seqs.shape[0]).cuda()
+        generated_seqs = torch.LongTensor([[PADDING_TOK] * seq_len] * batch_size).cuda()
+        generated_masks = torch.LongTensor([[MASK] * seq_len] * batch_size).cuda()
         decoded = self.decoder(input_ids=generated_seqs, attention_mask=generated_masks, encoder_hidden_states=encoded, encoder_attention_mask=input_masks).last_hidden_state
 
         outputs = self.lm_head(decoded)
@@ -121,20 +121,13 @@ class MoralTransformer(pl.LightningModule):
         
         generated_seqs = self.forward(input_seqs, input_masks, moral_targets) # for discriminator and BERTSCORE
         
-        # 1.  Discriminator outputs
-        # TODO: how to feed this in properly
-        # discriminator currently expects shape (BATCH_SIZE, seq_len) of type LongTensor (TOKENS)
-        # but generator output is (BATCH_SIZE, seq_len, n_vocab) of type FloatTensor     (TOKEN PROBABILITIES)
+        # 1. Moral loss
         predicted_morals = self.discriminator(generated_seqs) 
 
-        # 2. BARTSCORE loss between generated_seqs and input_seqs
+        # 2. Content loss between generated_seqs and input_seqs
         # content_loss = self.bart_scorer.calc_bart_score(generated_seqs, input_seqs)
-        moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
 
-        # 2. BERTSCORE loss between generated_seqs and input_seqs
-        # content_loss = 0
-
-        # 3. Backpropagate
+        # 3. Final loss
         loss = moral_loss
 
         return {'loss': loss}

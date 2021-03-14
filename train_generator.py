@@ -37,7 +37,7 @@ def train(exp_name, gpus):
     # ------------
     # training
     # ------------
-    LEARNING_RATE = 1e-5
+    LEARNING_RATE = 1e-7
     hparams = {'lr': LEARNING_RATE}
     print('Loading discriminator...')
     discriminator = OneHotMoralClassifier({}, use_mask=False)
@@ -54,13 +54,13 @@ def train(exp_name, gpus):
                     )
 
     # LR Exploration        
-    lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
-    print(lr_finder.results)
-    fig = lr_finder.plot(suggest=True)
-    # fig.show()
-    # fig.savefig('lr.png')
-    new_lr = lr_finder.suggestion()
-    print(new_lr)
+    # lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
+    # print(lr_finder.results)
+    # fig = lr_finder.plot(suggest=True)
+    # # fig.show()
+    # # fig.savefig('lr.png')
+    # new_lr = lr_finder.suggestion()
+    # print(new_lr)
 
     trainer.fit(model, train_loader, val_loader)
     print("Training Done")

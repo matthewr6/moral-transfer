@@ -62,19 +62,12 @@ class MoralTransformer(pl.LightningModule):
             for param in self.decoder.parameters():
                 param.requires_grad = False
 
-<<<<<<< HEAD
         # self.discriminator = discriminator
         self.bert_scorer = bert_score.BERTScorer
-
-        # checkpoint = torch.load('../saved_models/classifier_frozen_encoder_lr_1e-4.ckpt')
-        self.discriminator = MoralClassifier.load_from_checkpoint('./epoch=7-step=10639.ckpt')
-        # self.discriminator.load_state_dict(checkpoint['state_dict'])
-=======
         self.decoder_head = nn.Linear(self.embedding.embedding_dim, self.n_vocab)
 
         self.discriminator = OneHotMoralClassifier(use_mask=False)
         self.discriminator.load_state_dict(torch.load('../saved_models/onehot_classifier.state'))
->>>>>>> c47a6c914a72db5938e5e197cf987d4a28bb711f
 
         self.to_discrim_input = nn.Linear(self.n_vocab, 1) # temporary argmax hack
 

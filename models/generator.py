@@ -48,14 +48,17 @@ class MoralTransformer(pl.LightningModule):
                 lr=0.001, discriminator=None, bart_decoder=True, 
                 freeze_encoder=True, freeze_decoder=True, contextual_injection=True, 
                 n_contextual_linear=2, moral_vec_size=10, 
-                use_content_loss=False, content_loss_type='cosine', input_seq_as_decoder_input=False):
+                use_content_loss=False, content_loss_type='cosine', input_seq_as_decoder_input=False,
+                feed_moral_tokens_to='encoder'):
         super().__init__()
         assert n_contextual_linear >= 1
         self.lr = lr
         self.contextual_injection = contextual_injection
+        self.feed_moral_tokens_to = feed_moral_tokens_to
         self.input_seq_as_decoder_input = input_seq_as_decoder_input
         self.use_content_loss = use_content_loss
         self.content_loss_type = content_loss_type
+        
         self.tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
         self.bart_scorer = BartScorer()
 
@@ -83,11 +86,7 @@ class MoralTransformer(pl.LightningModule):
             self.linears.append(nn.Linear(self.embedding.embedding_dim, self.embedding.embedding_dim))
 
         # Decoder
-        if bart_decoder:
-            self.decoder = self.pretrained.model.decoder
-        else:
-            decoder_layer = nn.TransformerDecoderLayer(d_model=self.embedding.embedding_dim, nhead=16, dim_feedforward=1024, dropout=0.1, activation='relu')
-            self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=12)
+        self.decoder = self.pretrained.model.decoder
         if freeze_decoder:
             for param in self.decoder.parameters():
                 param.requires_grad = False
@@ -104,24 +103,19 @@ class MoralTransformer(pl.LightningModule):
         self.onehot_embeddings.requires_grad = False
         self.onehot_embeddings.weight.requires_grad = False
 
-    def forward(self, input_seqs, original_ids, input_masks, moral_targets):
-        batch_size = input_seqs.shape[0]
-        seq_len = input_seqs.shape[1]
+    def forward(self, encoder_seqs, decoder_seqs, encoder_mask, decoder_mask, moral_targets):
+        batch_size = encoder_seqs.shape[0]
+        seq_len = encoder_seqs.shape[1]
         copied_morals = torch.unsqueeze(moral_targets, 1).repeat(1, seq_len, 1)
 
-        encoded = self.encoder(input_seqs, input_masks).last_hidden_state
+        encoded = self.encoder(encoder_seqs, encoder_mask).last_hidden_state
 
         if self.contextual_injection:
             encoded = torch.cat((encoded, copied_morals), 2)
             for linear in self.linears:
                 encoded = linear(encoded)
 
-        if self.input_seq_as_decoder_input:
-            decoded = self.decoder(input_ids=original_ids, attention_mask=input_masks, encoder_hidden_states=encoded, encoder_attention_mask=input_masks).last_hidden_state
-        else:
-            generated_seqs = torch.LongTensor([[PADDING_TOK] * seq_len] * batch_size).to(device)
-            generated_masks = torch.LongTensor([[MASK] * seq_len] * batch_size).to(device)
-            decoded = self.decoder(input_ids=generated_seqs, attention_mask=generated_masks, encoder_hidden_states=encoded, encoder_attention_mask=input_masks).last_hidden_state
+        decoded = self.decoder(input_ids=decoder_seqs, attention_mask=decoder_mask, encoder_hidden_states=encoded, encoder_attention_mask=encoder_mask).last_hidden_state
 
         outputs = self.lm_head(decoded)
         outputs = F.softmax(outputs, dim=-1)
@@ -157,48 +151,62 @@ class MoralTransformer(pl.LightningModule):
         return loss
 
     def training_step(self, batch, batch_idx):
-        input_seqs = batch['ids']
-        input_masks = batch['mask']
         original_ids = batch['original_ids']
-        moral_targets = batch['targets']
+        ids_with_moral_tokens = batch['ids_with_moral_tokens']
 
-        generated_seqs = self.forward(input_seqs, original_ids, input_masks, moral_targets)
+        original_mask = batch['original_mask']
+        encdec_mask = batch['encdec_mask']
+        target_morals = batch['target_morals']
+
+        # encoder_seqs, decoder_seqs, encoder_mask, decoder_mask, moral_targets
+        if self.feed_moral_tokens_to == 'encoder':
+            generated_seqs = self.forward(ids_with_moral_tokens, original_ids, encdec_mask, original_mask, target_morals)
+        else:
+            generated_seqs = self.forward(original_ids, ids_with_moral_tokens, original_mask, encdec_mask, target_morals)
+
         predicted_morals = self.discriminator(generated_seqs) 
 
-        loss = self.loss_fn(original_ids, generated_seqs, moral_targets, predicted_morals)
+        loss = self.loss_fn(original_ids, generated_seqs, target_morals, predicted_morals)
 
         self.log('train_loss', loss)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_nb):
-        input_seqs = batch['ids']
-        input_masks = batch['mask']
         original_ids = batch['original_ids']
-        moral_targets = batch['targets']
+        ids_with_moral_tokens = batch['ids_with_moral_tokens']
 
-        generated_seqs = self.forward(input_seqs, original_ids, input_masks, moral_targets)
-        predicted_morals = self.discriminator(generated_seqs) 
+        original_mask = batch['original_mask']
+        encdec_mask = batch['encdec_mask']
+        target_morals = batch['target_morals']
 
-        loss = self.loss_fn(original_ids, generated_seqs, moral_targets, predicted_morals)
+        # encoder_seqs, decoder_seqs, encoder_mask, decoder_mask, moral_targets
+        if self.feed_moral_tokens_to == 'encoder':
+            generated_seqs = self.forward(ids_with_moral_tokens, original_ids, encdec_mask, original_mask, target_morals)
+        else:
+            generated_seqs = self.forward(original_ids, ids_with_moral_tokens, original_mask, encdec_mask, target_morals)
+
+        predicted_morals = self.discriminator(generated_seqs)
+
+        loss = self.loss_fn(original_ids, generated_seqs, target_morals, predicted_morals)
         predicted_morals_preds = (predicted_morals >= 0).int()  
         stats =  {'val_loss': loss, 
                    'progress_bar': {'val_loss': loss},
                    'predicted_morals_preds': predicted_morals_preds,
                    'predicted_morals': predicted_morals,
-                   'moral_targets': moral_targets}
+                   'target_morals': target_morals}
         
         self.log('val_loss', loss)
         return {**stats}
     
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        moral_targets = torch.cat([x['moral_targets'] for x in outputs])
+        target_morals = torch.cat([x['target_morals'] for x in outputs])
         predicted_morals_preds = torch.cat([x['predicted_morals_preds'] for x in outputs])
         predicted_morals = torch.cat([x['predicted_morals'] for x in outputs])
 
-        accuracy = metrics.accuracy_score(moral_targets.cpu(), predicted_morals_preds.cpu())
-        f1_score_micro = metrics.f1_score(moral_targets.cpu(), predicted_morals_preds.cpu(), average='micro')
-        f1_score_macro = metrics.f1_score(moral_targets.cpu(), predicted_morals_preds.cpu(), average='macro')
+        accuracy = metrics.accuracy_score(target_morals.cpu(), predicted_morals_preds.cpu())
+        f1_score_micro = metrics.f1_score(target_morals.cpu(), predicted_morals_preds.cpu(), average='micro')
+        f1_score_macro = metrics.f1_score(target_morals.cpu(), predicted_morals_preds.cpu(), average='macro')
 
         stats = {
             'acc': accuracy,

@@ -19,7 +19,7 @@ def rand_target_morals(input_vec):
 
     while True:
         output_vec = np.random.randint(0, 2, 10)  # randomly generate output moral
-        if np.sum(output_vec) > 3:
+        if output_vec.sum() > 3:
             continue
 
         # Check similarity. Output should be different from the input
@@ -39,13 +39,38 @@ def rand_target_morals(input_vec):
             if morals_consistent:
                 return output_vec  # No opposing morals, return True
 
+# def rand_target_morals(input_vec):
+#     unused_pair_idxs = []
+#     for i in range(0, 10, 2):
+#         if not input_vec[i] and not input_vec[i + 1]:
+#             unused_pair_idxs.append(i)
+
+#     output_vec = [0] * len(input_vec)
+#     num_targets = np.random.randint(1, 3)
+#     chosen_pair_idxs = np.random.choice(unused_pair_idxs, size=num_targets, replace=False)
+
+#     for pair_idx in chosen_pair_idxs:
+#         which = np.random.randint(0, 2)
+#         output_vec[pair_idx + which] = 1
+
+#     return output_vec
+
 vocab_size = 50264
 # last_used_token = 50141
 unused_tokens = [i for i in range(50264 - 10, 50264)]
 
+def calc_num_moral_types(arr):
+    r = []
+    for i in range(0, 10, 2):
+        if arr[i] or arr[i + 1]:
+            r.append(1)
+        else:
+            r.append(0)
+    return sum(r)
+
 class NewsDataset(torch.utils.data.Dataset):
     def __init__(self, data, moral_mode='identity', include_moral_tokens=False):
-        self.data = data
+        self.data = self.filter(data)
         self.moral_mode = moral_mode
         labels = list(map(itemgetter('moral_features'), data))
         self.targets = labels
@@ -53,43 +78,53 @@ class NewsDataset(torch.utils.data.Dataset):
         self.max_seq_len = 86 # can write a func to calculate this later
         self.num_morals = 10
 
+    def filter(self, data):
+        filtered = []
+        for d in data:
+            morals = d['moral_features']
+            num_moral_types = calc_num_moral_types(morals)
+            if num_moral_types < 4:
+                filtered.append(d)
+        return data
+
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
         article = self.data[index]
+
         original_ids = article['content']
-        mask = article['attention_mask']
+        ids_with_moral_tokens = original_ids[:]
+
+        original_mask = article['attention_mask']
+        encdec_mask = original_mask[:]
+
         original_morals = self.targets[index]
-        new_morals = original_morals[:]
+        target_morals = original_morals[:]
 
         if self.moral_mode != 'identity':
-            new_morals = rand_target_morals(original_morals)
+            target_morals = rand_target_morals(original_morals)
 
-        original_ids = ids[:]
         if self.include_moral_tokens:
             seq_end_idx = original_ids.index(STOP_TOKEN) + 1
 
+            # extend sequences
             original_ids += [1] * self.num_morals
-            original_ids += [1] * self.num_morals
-            mask += [MASK] * self.num_morals
+            ids_with_moral_tokens += [1] * self.num_morals
+            original_mask += [MASK] * self.num_morals
+            encdec_mask += [MASK] * self.num_morals
 
+            # add morals and extend mask
             for i in range(10):
-                if original_morals[i] == 1:
-                    ids[seq_end_idx + i] = unused_tokens[i]
-                mask[seq_end_idx + i] = UNMASK
+                if target_morals[i] == 1:
+                    ids_with_moral_tokens[seq_end_idx + i] = unused_tokens[i]
+                encdec_mask[seq_end_idx + i] = UNMASK
 
         return {
-            'encoder_ids': torch.tensor(encoder_ids, dtype=torch.long),
-            'decoder_ids': torch.tensor(decoder_ids, dtype=torch.long),
-            'mask': torch.tensor(mask, dtype=torch.long),
-            'original_ids': torch.tensor(original_ids, dtype=torch.long),
-            # 'token_type_ids': torch.tensor(token_type_ids, dtype=torch.long),
-            'targets': torch.tensor(original_morals, dtype=torch.float)
-        }
+            'original_ids':  torch.tensor(original_ids, dtype=torch.long),
+            'ids_with_moral_tokens':   torch.tensor(ids_with_moral_tokens, dtype=torch.long),
 
-if __name__ == '__main__':
-    a = np.array([0, 0, 1, 0, 1, 0, 1, 0, 0, 1])
-    output = rand_target_morals(a)
-    print('test')
-    print(output)
+            'original_mask': torch.tensor(original_mask, dtype=torch.long),
+            'encdec_mask':   torch.tensor(encdec_mask, dtype=torch.long),
+            'target_morals': torch.tensor(target_morals, dtype=torch.float)
+        }

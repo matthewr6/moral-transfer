@@ -158,7 +158,6 @@ class OneHotMoralClassifier(pl.LightningModule):
         print(stats)
         return {**stats}
 
-
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
     

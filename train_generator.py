@@ -19,7 +19,7 @@ from data import NewsDataset
 
 def train(exp_name, gpus):
     print("Loading data...")
-    file = open('data/nela-covid-2020/combined/headlines_cnn_bart_split.pkl', 'rb')
+    file = open('headlines_cnn_bart_split.pkl', 'rb')
     # file = open('data/nela-covid-2020/combined/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
     data = pickle.load(file)
     file.close()
@@ -66,13 +66,13 @@ def train(exp_name, gpus):
                     )
 
     # LR Exploration        
-    # lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
-    # print(lr_finder.results)
+    lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
+    print(lr_finder.results)
     # fig = lr_finder.plot(suggest=True)
     # # fig.show()
     # # fig.savefig('lr.png')
-    # new_lr = lr_finder.suggestion()
-    # print(new_lr)
+    new_lr = lr_finder.suggestion()
+    print(new_lr)
 
     trainer.fit(model, train_loader, val_loader)
     print("Training Done")

@@ -44,7 +44,11 @@ UNMASK = 1
 # Stacks moral vector with encoded representation, prior to decoder.
 class MoralTransformer(pl.LightningModule):
 
-    def __init__(self, lr=0.001, discriminator=None, bart_decoder=True, freeze_encoder=True, freeze_decoder=True, contextual_injection=True, n_contextual_linear=2, moral_vec_size=10, use_content_loss=False, content_loss_type='cosine', input_seq_as_decoder_input=False):
+    def __init__(self, 
+                lr=0.001, discriminator=None, bart_decoder=True, 
+                freeze_encoder=True, freeze_decoder=True, contextual_injection=True, 
+                n_contextual_linear=2, moral_vec_size=10, 
+                use_content_loss=False, content_loss_type='cosine', input_seq_as_decoder_input=False):
         super().__init__()
         assert n_contextual_linear >= 1
         self.lr = lr
@@ -152,9 +156,6 @@ class MoralTransformer(pl.LightningModule):
         loss = moral_loss + content_loss
         return loss
 
-
-
-
     def training_step(self, batch, batch_idx):
         input_seqs = batch['ids']
         input_masks = batch['mask']
@@ -208,8 +209,6 @@ class MoralTransformer(pl.LightningModule):
         self.log('val_loss', avg_loss)
         print(stats)
         return {**stats}
-    
-
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)

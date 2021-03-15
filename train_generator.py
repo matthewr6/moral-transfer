@@ -38,7 +38,7 @@ def train(exp_name, gpus):
     print("Data loaded")
 
     # stuff to change
-    exp_idx = 3
+    exp_idx = 4
     exp = experiments[exp_idx]
 
     exp_name = exp[0]

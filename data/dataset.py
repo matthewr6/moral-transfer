@@ -14,11 +14,16 @@ STOP_TOKEN = 2
 MASK = 0
 UNMASK = 1
 
+
+
+
 def rand_target_morals(input_vec):
     assert len(input_vec) == 10
 
     while True:
         output_vec = np.random.randint(0, 2, 10)  # randomly generate output moral
+        if np.sum(output_vec) > 3:
+            continue
 
         # Check similarity. Output should be different from the input
         combined_vec = zip(input_vec, output_vec)
@@ -85,3 +90,9 @@ class NewsDataset(torch.utils.data.Dataset):
             # 'token_type_ids': torch.tensor(token_type_ids, dtype=torch.long),
             'targets': torch.tensor(original_morals, dtype=torch.float)
         }
+
+if __name__ == '__main__':
+    a = np.array([0, 0, 1, 0, 1, 0, 1, 0, 0, 1])
+    output = rand_target_morals(a)
+    print('test')
+    print(output)

@@ -26,7 +26,7 @@ experiments = [
     ('exp3', 'encoder', 1e-6, 'random'),
     ('exp3', 'decoder', 1e-6, 'random'),
     ('unfreeze+content_loss', 'decoder', 1e-6, 'random'),
-
+    ('unfreeze_all', 'encoder', 1e-6, 'random'),
 ]
 
 def train(exp_name, gpus):
@@ -38,7 +38,7 @@ def train(exp_name, gpus):
     print("Data loaded")
 
     # stuff to change
-    exp_idx = 4
+    exp_idx = 5
     exp = experiments[exp_idx]
 
     exp_name = exp[0]
@@ -47,8 +47,10 @@ def train(exp_name, gpus):
     moral_mode = exp[3]
 
     # stuff to keep
-    freeze_encoder = (feed_moral_tokens_to == 'decoder')
-    freeze_decoder = (feed_moral_tokens_to == 'encoder')
+    # freeze_encoder = (feed_moral_tokens_to == 'decoder')
+    # freeze_decoder = (feed_moral_tokens_to == 'encoder')
+    freeze_encoder = False
+    freeze_decoder = False
     include_moral_tokens = True
 
 
@@ -56,8 +58,8 @@ def train(exp_name, gpus):
     val_dataset = NewsDataset(data['val'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
     test_dataset = NewsDataset(data['test'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
 
-    train_loader = DataLoader(train_dataset, batch_size=4, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=4, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=16, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=16, num_workers=4)
 
 
     # ------------
@@ -72,8 +74,8 @@ def train(exp_name, gpus):
     model = MoralTransformer(
         lr=lr,
         discriminator=discriminator,
-        use_content_loss=True,
-        content_loss_type="normalized_pairwise",
+        use_content_loss=False,
+        # content_loss_type="normalized_pairwise",
         contextual_injection=(not include_moral_tokens),
         input_seq_as_decoder_input=True,
         freeze_encoder=freeze_encoder,
@@ -91,12 +93,12 @@ def train(exp_name, gpus):
                     )
 
     # LR Exploration        
-    # lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
+    lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
     # fig = lr_finder.plot(suggest=True)
     # # fig.show()
     # # fig.savefig('lr.png')
-    # new_lr = lr_finder.suggestion()
-    # print(new_lr)
+    new_lr = lr_finder.suggestion()
+    print(new_lr)
 
     trainer.fit(model, train_loader, val_loader)
     print("Training Done")

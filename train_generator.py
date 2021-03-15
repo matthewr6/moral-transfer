@@ -26,7 +26,8 @@ experiments = [
     ('exp3', 'encoder', 1e-6, 'random'),
     ('exp3', 'decoder', 1e-6, 'random'),
     ('unfreeze+content_loss', 'decoder', 1e-6, 'random'),
-    ('unfreeze_all', 'encoder', 1e-6, 'random'),
+    ('unfreeze_all', 'encoder', 1e-6, 'random'), # best_lr suggested: 0.0005248074602497723, batch_size = 16
+    ('decoder+content_loss', 'decoder', 1e-6, 'random'),
 ]
 
 def train(exp_name, gpus):
@@ -38,7 +39,7 @@ def train(exp_name, gpus):
     print("Data loaded")
 
     # stuff to change
-    exp_idx = 5
+    exp_idx = 6
     exp = experiments[exp_idx]
 
     exp_name = exp[0]
@@ -47,10 +48,10 @@ def train(exp_name, gpus):
     moral_mode = exp[3]
 
     # stuff to keep
-    # freeze_encoder = (feed_moral_tokens_to == 'decoder')
-    # freeze_decoder = (feed_moral_tokens_to == 'encoder')
-    freeze_encoder = False
-    freeze_decoder = False
+    freeze_encoder = (feed_moral_tokens_to == 'decoder')
+    freeze_decoder = (feed_moral_tokens_to == 'encoder')
+    # freeze_encoder = False
+    # freeze_decoder = False
     include_moral_tokens = True
 
 
@@ -74,8 +75,8 @@ def train(exp_name, gpus):
     model = MoralTransformer(
         lr=lr,
         discriminator=discriminator,
-        use_content_loss=False,
-        # content_loss_type="normalized_pairwise",
+        use_content_loss=True,
+        content_loss_type="normalized_pairwise",
         contextual_injection=(not include_moral_tokens),
         input_seq_as_decoder_input=True,
         freeze_encoder=freeze_encoder,

@@ -73,7 +73,7 @@ def train(exp_name, gpus):
         lr=lr,
         discriminator=discriminator,
         use_content_loss=True,
-        content_loss_type="normalized_pairwise"
+        content_loss_type="normalized_pairwise",
         contextual_injection=(not include_moral_tokens),
         input_seq_as_decoder_input=True,
         freeze_encoder=freeze_encoder,

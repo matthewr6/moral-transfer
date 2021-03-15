@@ -27,11 +27,12 @@ def train(exp_name, gpus):
 
     # create datasets
     include_moral_tokens = True
+    content_loss = False
     freeze_encoder = False
-    freeze_decoder = True
-    lr = 1e-7
+    freeze_decoder = False
+    lr = 1e-6
     moral_mode = 'identity'
-    exp_name = 'identity_pretraining'
+    exp_name = 'unfreeze'
 
     # good: 0 = true, 1 = false, 2 = true
     # terribl lrs: 1e-3, 1e-4, 1e-5
@@ -54,7 +55,7 @@ def train(exp_name, gpus):
     print('Discriminator loaded')
     print('Config:', lr, exp_name, moral_mode)
 
-    model = MoralTransformer(lr=lr, discriminator=discriminator, use_content_loss=False, contextual_injection=(not include_moral_tokens), input_seq_as_decoder_input=True, freeze_encoder=freeze_encoder, freeze_decoder=freeze_decoder)
+    model = MoralTransformer(lr=lr, discriminator=discriminator, use_content_loss=content_loss, contextual_injection=(not include_moral_tokens), input_seq_as_decoder_input=True, freeze_encoder=freeze_encoder, freeze_decoder=freeze_decoder)
 
     early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
     checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')

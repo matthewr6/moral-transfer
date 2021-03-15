@@ -26,9 +26,9 @@ def train(exp_name, gpus):
     print("Data loaded")
 
     # create datasets
-    train_dataset = NewsDataset(data['train'], include_moral_tokens=True)
-    val_dataset = NewsDataset(data['val'], include_moral_tokens=True)
-    test_dataset = NewsDataset(data['test'], include_moral_tokens=True)
+    train_dataset = NewsDataset(data['train'], include_moral_tokens=True, moral_mode='random')
+    val_dataset = NewsDataset(data['val'], include_moral_tokens=True, moral_mode='random')
+    test_dataset = NewsDataset(data['test'], include_moral_tokens=True, moral_mode='random')
 
     train_loader = DataLoader(train_dataset, batch_size=8, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=8, num_workers=4)
@@ -49,7 +49,7 @@ def train(exp_name, gpus):
     # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False, contextual_injection=True, input_seq_as_decoder_input=True, freeze_encoder=True, freeze_decoder=False)
 
     # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False, contextual_injection=False, freeze_encoder=True, freeze_decoder=False)
-    model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False, contextual_injection=False, input_seq_as_decoder_input=True, freeze_encoder=False, freeze_decoder=True)
+    model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False, contextual_injection=False, input_seq_as_decoder_input=True, freeze_encoder=True, freeze_decoder=False)
 
     early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
     checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
@@ -83,7 +83,8 @@ if __name__ == '__main__':
     # exp_name = 'moral_and_content_pairwise' # lr 1e-6
     # exp_name = 'moral_lr1e-5'
     # exp_name = 'moral_tokens'
-    exp_name = 'moral_tokens_decoderinput'
+    # exp_name = 'moral_tokens_decoderinput'
+    exp_name = 'moral_tokens+decoderNotFrozen_encoderFreeze'
     train(exp_name, gpus)
 
 

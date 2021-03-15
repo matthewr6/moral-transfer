@@ -14,6 +14,9 @@ STOP_TOKEN = 2
 MASK = 0
 UNMASK = 1
 
+
+
+
 def rand_target_morals(input_vec):
     assert len(input_vec) == 10
 

@@ -27,7 +27,7 @@ experiments = [
     ('exp3', 'decoder', 1e-6, 'random'),
     ('unfreeze+content_loss', 'decoder', 1e-6, 'random'),
     ('unfreeze_all', 'encoder', 1e-6, 'random'), # best_lr suggested: 0.0005248074602497723, batch_size = 16
-    ('decoder+content_loss', 'decoder', 1e-6, 'random'),
+    ('decoder+content_loss-cosine', 'decoder', 1e-6, 'random'),
 ]
 
 def train(exp_name, gpus):
@@ -76,7 +76,7 @@ def train(exp_name, gpus):
         lr=lr,
         discriminator=discriminator,
         use_content_loss=True,
-        content_loss_type="normalized_pairwise",
+        content_loss_type="cosine",
         contextual_injection=(not include_moral_tokens),
         input_seq_as_decoder_input=True,
         freeze_encoder=freeze_encoder,

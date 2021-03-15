@@ -200,8 +200,6 @@ class MoralTransformer(pl.LightningModule):
         self.log('val_loss', avg_loss)
         print(stats)
         return {**stats}
-    
-
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)

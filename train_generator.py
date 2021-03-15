@@ -19,7 +19,7 @@ from data import NewsDataset
 
 def train(exp_name, gpus):
     print("Loading data...")
-    file = open('data/nela-covid-2020/combined/headlines_cnn_bart_split.pkl', 'rb')
+    file = open('headlines_cnn_bart_split.pkl', 'rb')
     # file = open('data/nela-covid-2020/combined/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
     data = pickle.load(file)
     file.close()

@@ -44,10 +44,12 @@ UNMASK = 1
 # Stacks moral vector with encoded representation, prior to decoder.
 class MoralTransformer(pl.LightningModule):
 
-    def __init__(self, lr=0.001, discriminator=None, bart_decoder=True, freeze_encoder=True, freeze_decoder=True, n_contextual_linear=2, moral_vec_size=10, use_content_loss=False, content_loss_type='cosine'):
+    def __init__(self, lr=0.001, discriminator=None, bart_decoder=True, freeze_encoder=True, freeze_decoder=True, contextual_injection=True, n_contextual_linear=2, moral_vec_size=10, use_content_loss=False, content_loss_type='cosine', input_seq_as_decoder_input=False):
         super().__init__()
         assert n_contextual_linear >= 1
         self.lr = lr
+        self.contextual_injection = contextual_injection
+        self.input_seq_as_decoder_input = input_seq_as_decoder_input
         self.use_content_loss = use_content_loss
         self.content_loss_type = content_loss_type
         self.tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
@@ -98,20 +100,24 @@ class MoralTransformer(pl.LightningModule):
         self.onehot_embeddings.requires_grad = False
         self.onehot_embeddings.weight.requires_grad = False
 
-    def forward(self, input_seqs, input_masks, moral_targets):
+    def forward(self, input_seqs, original_ids, input_masks, moral_targets):
         batch_size = input_seqs.shape[0]
         seq_len = input_seqs.shape[1]
         copied_morals = torch.unsqueeze(moral_targets, 1).repeat(1, seq_len, 1)
 
         encoded = self.encoder(input_seqs, input_masks).last_hidden_state
-        encoded = torch.cat((encoded, copied_morals), 2)
 
-        for linear in self.linears:
-            encoded = linear(encoded)
+        if self.contextual_injection:
+            encoded = torch.cat((encoded, copied_morals), 2)
+            for linear in self.linears:
+                encoded = linear(encoded)
 
-        generated_seqs = torch.LongTensor([[PADDING_TOK] * seq_len] * batch_size).to(device)
-        generated_masks = torch.LongTensor([[MASK] * seq_len] * batch_size).to(device)
-        decoded = self.decoder(input_ids=generated_seqs, attention_mask=generated_masks, encoder_hidden_states=encoded, encoder_attention_mask=input_masks).last_hidden_state
+        if self.input_seq_as_decoder_input:
+            decoded = self.decoder(input_ids=original_ids, attention_mask=input_masks, encoder_hidden_states=encoded, encoder_attention_mask=input_masks).last_hidden_state
+        else:
+            generated_seqs = torch.LongTensor([[PADDING_TOK] * seq_len] * batch_size).to(device)
+            generated_masks = torch.LongTensor([[MASK] * seq_len] * batch_size).to(device)
+            decoded = self.decoder(input_ids=generated_seqs, attention_mask=generated_masks, encoder_hidden_states=encoded, encoder_attention_mask=input_masks).last_hidden_state
 
         outputs = self.lm_head(decoded)
         outputs = F.softmax(outputs, dim=-1)
@@ -152,9 +158,10 @@ class MoralTransformer(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         input_seqs = batch['ids']
         input_masks = batch['mask']
+        original_ids = batch['original_ids']
         moral_targets = batch['targets']
 
-        generated_seqs = self.forward(input_seqs, input_masks, moral_targets)
+        generated_seqs = self.forward(input_seqs, original_ids, input_masks, moral_targets)
         predicted_morals = self.discriminator(generated_seqs) 
 
         loss = self.loss_fn(input_seqs, generated_seqs, moral_targets, predicted_morals)
@@ -165,12 +172,13 @@ class MoralTransformer(pl.LightningModule):
     def validation_step(self, batch, batch_nb):
         input_seqs = batch['ids']
         input_masks = batch['mask']
+        original_ids = batch['original_ids']
         moral_targets = batch['targets']
 
-        generated_seqs = self.forward(input_seqs, input_masks, moral_targets)
+        generated_seqs = self.forward(input_seqs, original_ids, input_masks, moral_targets)
         predicted_morals = self.discriminator(generated_seqs) 
 
-        loss = self.loss_fn(input_seqs, generated_seqs, moral_targets, predicted_morals)
+        loss = self.loss_fn(original_ids, generated_seqs, moral_targets, predicted_morals)
         predicted_morals_preds = (predicted_morals >= 0).int()  
         stats =  {'val_loss': loss, 
                    'progress_bar': {'val_loss': loss},

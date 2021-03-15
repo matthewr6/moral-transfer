@@ -77,6 +77,9 @@ class NewsDataset(torch.utils.data.Dataset):
                     ids[seq_end_idx + i] = unused_tokens[i]
                 mask[seq_end_idx + i] = UNMASK
 
+        if self.moral_mode != 'identity':
+            targets = rand_target_morals(targets)
+
         return {
             'encoder_ids': torch.tensor(encoder_ids, dtype=torch.long),
             'decoder_ids': torch.tensor(decoder_ids, dtype=torch.long),

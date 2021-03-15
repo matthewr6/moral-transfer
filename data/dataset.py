@@ -48,41 +48,40 @@ class NewsDataset(torch.utils.data.Dataset):
         labels = list(map(itemgetter('moral_features'), data))
         self.targets = labels
         self.include_moral_tokens = include_moral_tokens
+        self.max_seq_len = 86 # can write a func to calculate this later
+        self.num_morals = 10
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
         article = self.data[index]
-        ids = article['content']
+        original_ids = article['content']
         mask = article['attention_mask']
-        # token_type_ids = article["token_type_ids"]
-        targets = self.targets[index]
+        original_morals = self.targets[index]
+        new_morals = original_morals[:]
 
         if self.moral_mode != 'identity':
-            targets = rand_target_morals(targets)
+            new_morals = rand_target_morals(original_morals)
 
         original_ids = ids[:]
         if self.include_moral_tokens:
-            seq_end_idx = ids.index(STOP_TOKEN) + 1
+            seq_end_idx = original_ids.index(STOP_TOKEN) + 1
 
-            seq_len = len(ids)
-            target_len = seq_end_idx + 10
-            len_diff = target_len - seq_len
-            if len_diff > 0:
-                ids += [1] * len_diff
-                original_ids += [1] * len_diff
-                mask += [MASK] * len_diff
+            original_ids += [1] * self.num_morals
+            original_ids += [1] * self.num_morals
+            mask += [MASK] * self.num_morals
 
             for i in range(10):
-                if targets[i] == 1:
+                if original_morals[i] == 1:
                     ids[seq_end_idx + i] = unused_tokens[i]
                 mask[seq_end_idx + i] = UNMASK
 
         return {
-            'ids': torch.tensor(ids, dtype=torch.long),
+            'encoder_ids': torch.tensor(encoder_ids, dtype=torch.long),
+            'decoder_ids': torch.tensor(decoder_ids, dtype=torch.long),
             'mask': torch.tensor(mask, dtype=torch.long),
             'original_ids': torch.tensor(original_ids, dtype=torch.long),
             # 'token_type_ids': torch.tensor(token_type_ids, dtype=torch.long),
-            'targets': torch.tensor(targets, dtype=torch.float)
+            'targets': torch.tensor(original_morals, dtype=torch.float)
         }

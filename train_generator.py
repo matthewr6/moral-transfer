@@ -26,9 +26,20 @@ def train(exp_name, gpus):
     print("Data loaded")
 
     # create datasets
-    train_dataset = NewsDataset(data['train'], include_moral_tokens=True)
-    val_dataset = NewsDataset(data['val'], include_moral_tokens=True)
-    test_dataset = NewsDataset(data['test'], include_moral_tokens=True)
+    include_moral_tokens = True
+    freeze_encoder = False
+    freeze_decoder = True
+    lr = 1e-7
+    moral_mode = 'identity'
+    exp_name = 'identity_pretraining'
+
+    # good: 0 = true, 1 = false, 2 = true
+    # terribl lrs: 1e-3, 1e-4, 1e-5
+    # experiments: 1e-7, 1e-8, 1e-7 identity pretraining, 1e-6
+
+    train_dataset = NewsDataset(data['train'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
+    val_dataset = NewsDataset(data['val'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
+    test_dataset = NewsDataset(data['test'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
 
     train_loader = DataLoader(train_dataset, batch_size=8, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=8, num_workers=4)
@@ -41,15 +52,9 @@ def train(exp_name, gpus):
     discriminator = OneHotMoralClassifier({}, use_mask=False)
     discriminator.load_state_dict(torch.load('discriminator_titlemorals_state.pkl'))
     print('Discriminator loaded')
+    print('Config:', lr, exp_name, moral_mode)
 
-    # model = MoralTransformer(lr=1e-3, discriminator=discriminator, use_content_loss=False)
-    # model = MoralTransformer(lr=1e-3, discriminator=discriminator, use_content_loss=True, content_loss_type='cosine')
-    # model = MoralTransformer(lr=1e-6, discriminator=discriminator, use_content_loss=True, content_loss_type='normalized_pairwise')
-    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False)
-    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False, contextual_injection=True, input_seq_as_decoder_input=True, freeze_encoder=True, freeze_decoder=False)
-
-    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False, contextual_injection=False, freeze_encoder=True, freeze_decoder=False)
-    model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False, contextual_injection=False, input_seq_as_decoder_input=True, freeze_encoder=False, freeze_decoder=True)
+    model = MoralTransformer(lr=lr, discriminator=discriminator, use_content_loss=False, contextual_injection=(not include_moral_tokens), input_seq_as_decoder_input=True, freeze_encoder=freeze_encoder, freeze_decoder=freeze_decoder)
 
     early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
     checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
@@ -78,13 +83,5 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = 1 if torch.cuda.is_available() else None
-    # exp_name = 'moral' # lr 1e-3
-    # exp_name = 'moral_and_content_cosine' # lr 1e-3
-    # exp_name = 'moral_and_content_pairwise' # lr 1e-6
-    # exp_name = 'moral_lr1e-5'
-    # exp_name = 'moral_tokens'
-    exp_name = 'moral_tokens_decoderinput'
+    exp_name = 'exp2'
     train(exp_name, gpus)
-
-
-

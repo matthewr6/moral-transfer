@@ -164,7 +164,7 @@ class MoralTransformer(pl.LightningModule):
         generated_seqs = self.forward(input_seqs, original_ids, input_masks, moral_targets)
         predicted_morals = self.discriminator(generated_seqs) 
 
-        loss = self.loss_fn(input_seqs, generated_seqs, moral_targets, predicted_morals)
+        loss = self.loss_fn(original_ids, generated_seqs, moral_targets, predicted_morals)
 
         self.log('train_loss', loss)
         return {'loss': loss}

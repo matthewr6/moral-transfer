@@ -48,7 +48,7 @@ def train(exp_name, gpus):
     # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False)
     # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False, contextual_injection=True, input_seq_as_decoder_input=True, freeze_encoder=True, freeze_decoder=False)
 
-    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False, contextual_injection=False, freeze_encoder=True, freeze_decoder=False)
+    # model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False, contextual_injection=False, freeze_encoder=False, freeze_decoder=True)
     model = MoralTransformer(lr=1e-5, discriminator=discriminator, use_content_loss=False, contextual_injection=False, input_seq_as_decoder_input=True, freeze_encoder=True, freeze_decoder=False)
 
     early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
@@ -61,13 +61,13 @@ def train(exp_name, gpus):
                     )
 
     # LR Exploration        
-    # lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
-    # print(lr_finder.results)
+    lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
+    print(lr_finder.results)
     # fig = lr_finder.plot(suggest=True)
     # # fig.show()
     # # fig.savefig('lr.png')
-    # new_lr = lr_finder.suggestion()
-    # print(new_lr)
+    new_lr = lr_finder.suggestion()
+    print(new_lr)
 
     trainer.fit(model, train_loader, val_loader)
     print("Training Done")

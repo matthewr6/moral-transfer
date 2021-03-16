@@ -32,8 +32,8 @@ experiments = [
 
 def train(gpus):
     print("Loading data...")
-    # file = open('headlines_cnn_bart_split.pkl', 'rb')
-    file = open('data/nela-covid-2020/combined/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
+    file = open('headlines_cnn_bart_split.pkl', 'rb')
+    # file = open('data/nela-covid-2020/combined/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
     data = pickle.load(file)
     file.close()
     print("Data loaded")
@@ -64,8 +64,8 @@ def train(gpus):
     val_dataset = NewsDataset(data['val'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
     test_dataset = NewsDataset(data['test'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
 
-    train_loader = DataLoader(train_dataset, batch_size=4, num_workers=4)
-    val_loader = DataLoader(val_dataset, batch_size=4, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=16, num_workers=4)
+    val_loader = DataLoader(val_dataset, batch_size=16, num_workers=4)
 
 
     # ------------
@@ -97,12 +97,12 @@ def train(gpus):
                     )
 
     # LR Exploration        
-    # lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
+    lr_finder = trainer.tuner.lr_find(model, train_loader, val_loader)
     # fig = lr_finder.plot(suggest=True)
     # # fig.show()
     # # fig.savefig('lr.png')
-    # new_lr = lr_finder.suggestion()
-    # print(new_lr)
+    new_lr = lr_finder.suggestion()
+    print(new_lr)
 
     trainer.fit(model, train_loader, val_loader)
     print("Training Done")

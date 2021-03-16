@@ -136,6 +136,7 @@ class MoralTransformer(pl.LightningModule):
             output_embeddings = self.onehot_embeddings(generated_seqs)
             output_embeddings = self.encoder(inputs_embeds=output_embeddings).last_hidden_state
             output_embeddings = torch.mean(output_embeddings, 1)
+            
             if self.content_loss_type == 'cosine':
                 content_loss = F.cosine_similarity(input_embeddings, output_embeddings)
             elif self.content_loss_type == 'pairwise': 

@@ -51,7 +51,7 @@ def train(gpus):
     use_moral_loss = exp[4]
 
     exp_name = '_'.join([feed_moral_tokens_to, str(lr), moral_mode, str(content_loss_type), str(use_moral_loss)])
-    exp_name = "resume" + exp_name 
+    exp_name = "Real_Resume " + exp_name 
     print(exp_name)
 
     # stuff to keep

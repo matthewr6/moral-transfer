@@ -116,18 +116,25 @@ class OneHotMoralClassifier(pl.LightningModule):
 
 
     def test_step(self, batch, batch_nb):
-        ids = batch['ids']
-        mask = batch['mask']
-        y = batch['targets']
-        one_hot_encodings = F.one_hot(ids, num_classes=self.vocab_size).float()
-        y_hat = self.forward(one_hot_encodings, mask)
-        loss = self.loss_fn(y_hat, y)
+        # ids = batch['ids']
+        # mask = batch['mask']
+        # y = batch['targets']
+        original_ids = batch['original_ids']
+        ids_with_moral_tokens = batch['ids_with_moral_tokens']
+
+        original_mask = batch['original_mask']
+        encdec_mask = batch['encdec_mask']
+        target_morals = batch['target_morals']
+
+        one_hot_encodings = F.one_hot(original_ids, num_classes=self.vocab_size).float()
+        y_hat = self.forward(one_hot_encodings, original_mask)
+        loss = self.loss_fn(y_hat, target_morals)
         y_preds = (y_hat >= 0).int()  
         stats =  {'test_loss': loss, 
                    'progress_bar': {'test_loss': loss},
                    'y_preds': y_preds,
                    'y_hat': y_hat,
-                   'y': y}
+                   'y': target_morals}
         
         self.log('test_loss', loss)
         return {**stats}
@@ -142,7 +149,8 @@ class OneHotMoralClassifier(pl.LightningModule):
         y_preds = y_preds.cpu().detach().numpy()
 
         for feature_idx in range(y.shape[1]):
-            print(metrics.accuracy_score(y[:, feature_idx], y_preds[:, feature_idx]), metrics.balanced_accuracy_score(y[:, feature_idx], y_preds[:, feature_idx]))
+            # print(metrics.accuracy_score(y[:, feature_idx], y_preds[:, feature_idx]), metrics.balanced_accuracy_score(y[:, feature_idx], y_preds[:, feature_idx]))
+            print(metrics.f1_score(y[:, feature_idx], y_preds[:, feature_idx]))
 
         accuracy = metrics.accuracy_score(y, y_preds)
         f1_score_micro = metrics.f1_score(y, y_preds, average='micro')

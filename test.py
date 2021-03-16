@@ -12,7 +12,7 @@ from sklearn import metrics
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from models import MoralClassifier
-from models import OneHotMoralClassifier
+from models.custom_transformer_classifier import OneHotMoralClassifier
 from data import NewsDataset
 import torch
 
@@ -20,7 +20,7 @@ import torch
 def test(path, gpus):
     # load 
     print("Start")
-    file = open('headlines_contentmorals_cnn_bart_split.pkl', 'rb')
+    file = open('data/nela-covid-2020/combined/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
     data = pickle.load(file)
     file.close()
     print("Data Loaded")
@@ -40,5 +40,5 @@ def test(path, gpus):
 if __name__ == '__main__':
     # gpus = torch.cuda.device_count() if torch.cuda.is_available() else None
     gpus = 1 if torch.cuda.is_available() else None
-    path = "discriminator_state.pkl"
+    path = "dicriminator_contentmorals_state.pkl"
     test(path, gpus)

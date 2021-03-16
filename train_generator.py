@@ -15,19 +15,22 @@ from models import MoralTransformer
 from models.custom_transformer_classifier import OneHotMoralClassifier
 from data import NewsDataset
 
-# device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
+import sys
+assert len(sys.argv) > 1
+exp_idx = int(sys.argv[1])
 
+# [moral tokens to, lr, moral mode, content loss metric, include moral loss]
 experiments = [
-    # identity pretraining mght be useful
-    ('exp1', 'encoder', 1e-6, 'identity'),
-    ('exp2', 'decoder', 1e-6, 'identity'),
+    ['decoder', 1e-6, 'identity', 'normalized_pairwise', False],
+    ['encoder', 1e-6, 'identity', 'normalized_pairwise', False],
+    ['decoder', 1e-6, 'random', 'normalized_pairwise', True],
+    ['encoder', 1e-6, 'random', 'normalized_pairwise', True],
 
-    # or try directly training
-    ('exp3', 'encoder', 1e-6, 'random'),
-    ('exp3', 'decoder', 1e-6, 'random'),
+    # ['injection', 1e-6, 'identity', 'normalized_pairwise', False], # TODO IF TIME
+    # ['injection', 1e-6, 'random', 'normalized_pairwise', True], # TODO IF TIME
 ]
 
-def train(exp_name, gpus):
+def train(gpus):
     print("Loading data...")
     # file = open('headlines_cnn_bart_split.pkl', 'rb')
     file = open('data/nela-covid-2020/combined/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
@@ -35,20 +38,27 @@ def train(exp_name, gpus):
     file.close()
     print("Data loaded")
 
-    # stuff to change
-    exp_idx = 3
     exp = experiments[exp_idx]
 
-    exp_name = exp[0]
-    feed_moral_tokens_to = exp[1]
-    lr = exp[2]
-    moral_mode = exp[3]
+    feed_moral_tokens_to = exp[0]
+    lr = exp[1]
+    moral_mode = exp[2]
+    use_content_loss = bool(exp[3])
+    content_loss_type = exp[3]
+    use_moral_loss = exp[4]
+
+    exp_name = '_'.join([feed_moral_tokens_to, str(lr), moral_mode, str(content_loss_type), str(use_moral_loss)])
+
+    print(exp_name)
 
     # stuff to keep
-    freeze_encoder = (feed_moral_tokens_to == 'decoder')
-    freeze_decoder = (feed_moral_tokens_to == 'encoder')
+    freeze_encoder = True
+    freeze_decoder = False
     include_moral_tokens = True
 
+    if feed_moral_tokens_to == 'injection':
+        freeze_encoder = False
+        include_moral_tokens = False
 
     train_dataset = NewsDataset(data['train'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
     val_dataset = NewsDataset(data['val'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
@@ -65,26 +75,25 @@ def train(exp_name, gpus):
     discriminator = OneHotMoralClassifier({}, use_mask=False)
     discriminator.load_state_dict(torch.load('discriminator_titlemorals_state.pkl'))
     print('Discriminator loaded')
-    print('{}: {}'.format(exp_name, ' / '.join([feed_moral_tokens_to, str(lr), moral_mode])))
 
     model = MoralTransformer(
         lr=lr,
         discriminator=discriminator,
-        use_content_loss=False,
+        use_content_loss=use_content_loss,
         contextual_injection=(not include_moral_tokens),
-        input_seq_as_decoder_input=True,
         freeze_encoder=freeze_encoder,
         freeze_decoder=freeze_decoder,
-        feed_moral_tokens_to=feed_moral_tokens_to
+        feed_moral_tokens_to=feed_moral_tokens_to,
+        content_loss_type=content_loss_type,
+        use_moral_loss=use_moral_loss
     )
 
-    early_stop_callback = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=True, mode='auto')
     checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
     trainer = Trainer(gpus=gpus, 
                     # auto_lr_find=False, # use to explore LRs
                     # distributed_backend='dp',
-                    max_epochs=20,
-                    callbacks=[checkpoint_callback, early_stop_callback],
+                    max_epochs=25,
+                    callbacks=[checkpoint_callback],
                     )
 
     # LR Exploration        
@@ -104,5 +113,4 @@ def train(exp_name, gpus):
 
 if __name__ == '__main__':
     gpus = 1 if torch.cuda.is_available() else None
-    exp_name = 'exp2'
-    train(exp_name, gpus)
+    train(gpus)

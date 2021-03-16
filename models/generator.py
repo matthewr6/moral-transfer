@@ -48,14 +48,14 @@ class MoralTransformer(pl.LightningModule):
                 lr=0.001, discriminator=None, bart_decoder=True, 
                 freeze_encoder=True, freeze_decoder=True, contextual_injection=True, 
                 n_contextual_linear=2, moral_vec_size=10, 
-                use_content_loss=False, content_loss_type='cosine', input_seq_as_decoder_input=False,
-                feed_moral_tokens_to='encoder'):
+                use_content_loss=False, content_loss_type='cosine',
+                feed_moral_tokens_to='encoder', use_moral_loss=False):
         super().__init__()
         assert n_contextual_linear >= 1
         self.lr = lr
         self.contextual_injection = contextual_injection
         self.feed_moral_tokens_to = feed_moral_tokens_to
-        self.input_seq_as_decoder_input = input_seq_as_decoder_input
+        self.use_moral_loss = use_moral_loss
         self.use_content_loss = use_content_loss
         self.content_loss_type = content_loss_type
         
@@ -123,17 +123,19 @@ class MoralTransformer(pl.LightningModule):
 
     def loss_fn(self, input_seqs, generated_seqs, moral_targets, predicted_morals): 
         # 1. Moral loss
-        moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
+        if self.use_moral_loss:
+            moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
+        else:
+            moral_loss = 0
 
         # 2. Content loss between generated_seqs and input_seqs
-        input_embeddings = self.encoder(input_seqs).last_hidden_state
-        input_embeddings = torch.mean(input_embeddings, 1)
-
-        output_embeddings = self.onehot_embeddings(generated_seqs)
-        output_embeddings = self.encoder(inputs_embeds=output_embeddings).last_hidden_state
-        output_embeddings = torch.mean(output_embeddings, 1)
-
         if self.use_content_loss:
+            input_embeddings = self.encoder(input_seqs).last_hidden_state
+            input_embeddings = torch.mean(input_embeddings, 1)
+
+            output_embeddings = self.onehot_embeddings(generated_seqs)
+            output_embeddings = self.encoder(inputs_embeds=output_embeddings).last_hidden_state
+            output_embeddings = torch.mean(output_embeddings, 1)
             if self.content_loss_type == 'cosine':
                 content_loss = F.cosine_similarity(input_embeddings, output_embeddings)
             elif self.content_loss_type == 'pairwise': 

@@ -60,7 +60,7 @@ class MoralTransformerSpecial(pl.LightningModule):
         self.content_loss_type = content_loss_type
 
         self.loss_history = []
-        self.training_epoch_count = 0
+        self.training_epoch_count = 10
         self.use_original_morals = True 
         
         self.tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
@@ -208,7 +208,7 @@ class MoralTransformerSpecial(pl.LightningModule):
         original_mask = batch['original_mask']
         encdec_mask = batch['encdec_mask']
         target_morals = batch['target_morals']
-        
+
         if self.use_original_morals:
             target_morals = batch['original_morals']
 

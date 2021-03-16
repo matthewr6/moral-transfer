@@ -26,7 +26,7 @@ experiments = [
     # ['decoder', 1e-6, 'identity', 'normalized_pairwise', False],
     # ['encoder', 1e-6, 'identity', 'normalized_pairwise', False],
     # ['decoder', 1e-6, 'random', 'normalized_pairwise', True],
-    ['decoder', 1e-6, 'id+random', 'normalized_pairwise', False],
+    ['decoder', 1e-6, 'id+random', 'normalized_pairwise', True],
     # ['encoder', 1e-6, 'random', 'normalized_pairwise', True],
 
     # ['injection', 1e-6, 'identity', 'normalized_pairwise', False], # TODO IF TIME
@@ -51,7 +51,7 @@ def train(gpus):
     use_moral_loss = exp[4]
 
     exp_name = '_'.join([feed_moral_tokens_to, str(lr), moral_mode, str(content_loss_type), str(use_moral_loss)])
-
+    exp_name = "resume" + exp_name 
     print(exp_name)
 
     # stuff to keep
@@ -92,11 +92,14 @@ def train(gpus):
         use_moral_loss=use_moral_loss
     )
 
-    checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, monitor='train_loss', mode='min')
+    model.load_state_dict(torch.load('experiments/decoder_1e-06_id+random_normalized_pairwise_False/checkpoints/epoch=9-step=26589.ckpt')['state_dict'])
+
+
+    checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, save_last=True, monitor='train_loss', mode='min')
     trainer = Trainer(gpus=gpus, 
                     # auto_lr_find=False, # use to explore LRs
                     # distributed_backend='dp',
-                    max_epochs=30,
+                    max_epochs=20,
                     callbacks=[checkpoint_callback],
                     )
 

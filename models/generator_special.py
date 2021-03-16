@@ -138,7 +138,7 @@ class MoralTransformerSpecial(pl.LightningModule):
             # different loss for first 10 epochs
             if self.training_epoch_count < 10: 
                 import pdb; pdb.set_trace()
-                input_seqs = F.one_hot(input_seqs, num_classes=50264).float()
+                generated_seqs = torch.transpose(generated_seqs, 1, 2)
                 content_loss = nn.CrossEntropyLoss()(generated_seqs, input_seqs)
             else:
                 input_embeddings = self.encoder(input_seqs).last_hidden_state

@@ -51,7 +51,7 @@ def train(gpus):
     use_moral_loss = exp[4]
 
     exp_name = '_'.join([feed_moral_tokens_to, str(lr), moral_mode, str(content_loss_type), str(use_moral_loss)])
-    exp_name = "Real_Resume " + exp_name 
+    exp_name = "RESUME " + exp_name 
     print(exp_name)
 
     # stuff to keep
@@ -100,7 +100,7 @@ def train(gpus):
                     # auto_lr_find=False, # use to explore LRs
                     # distributed_backend='dp',
                     resume_from_checkpoint='experiments/decoder_1e-06_id+random_normalized_pairwise_False/checkpoints/epoch=9-step=26589.ckpt',
-                    max_epochs=20,
+                    max_epochs=30,
                     callbacks=[checkpoint_callback],
                     )
 

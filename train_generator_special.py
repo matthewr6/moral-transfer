@@ -92,13 +92,14 @@ def train(gpus):
         use_moral_loss=use_moral_loss
     )
 
-    model.load_state_dict(torch.load('experiments/decoder_1e-06_id+random_normalized_pairwise_False/checkpoints/epoch=9-step=26589.ckpt')['state_dict'])
+    # model.load_state_dict(torch.load('experiments/decoder_1e-06_id+random_normalized_pairwise_False/checkpoints/epoch=9-step=26589.ckpt')['state_dict'])
 
 
     checkpoint_callback= ModelCheckpoint(dirpath=os.path.join("./experiments", exp_name, "checkpoints"), save_top_k=1, save_last=True, monitor='train_loss', mode='min')
     trainer = Trainer(gpus=gpus, 
                     # auto_lr_find=False, # use to explore LRs
                     # distributed_backend='dp',
+                    resume_from_checkpoint='experiments/decoder_1e-06_id+random_normalized_pairwise_False/checkpoints/epoch=9-step=26589.ckpt',
                     max_epochs=20,
                     callbacks=[checkpoint_callback],
                     )

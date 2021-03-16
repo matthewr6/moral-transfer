@@ -134,22 +134,29 @@ class MoralTransformerSpecial(pl.LightningModule):
 
         # 2. Content loss between generated_seqs and input_seqs
         if self.use_content_loss:
-            input_embeddings = self.encoder(input_seqs).last_hidden_state
-            input_embeddings = torch.mean(input_embeddings, 1)
+            # different loss for first 10 epochs
+            if self.training_epoch_count < 10: 
+                input_seqs = F.one_hot(input_seqs, num_classes=50264).float()
+                content_loss = nn.BCELoss()(generated_seqs, input_seqs)
+           else:
+                input_embeddings = self.encoder(input_seqs).last_hidden_state
+                input_embeddings = torch.mean(input_embeddings, 1)
 
-            output_embeddings = self.onehot_embeddings(generated_seqs)
-            output_embeddings = self.encoder(inputs_embeds=output_embeddings).last_hidden_state
-            output_embeddings = torch.mean(output_embeddings, 1)
-            
-            if self.content_loss_type == 'cosine':
-                content_loss = F.cosine_similarity(input_embeddings, output_embeddings)
-            elif self.content_loss_type == 'pairwise': 
-                content_loss = F.pairwise_distance(input_embeddings, output_embeddings)
-            elif self.content_loss_type == "normalized_pairwise": # normalized Euclidean Distance
-                unit_input = F.normalize(input_embeddings)
-                unit_output = F.normalize(output_embeddings)
-                content_loss = F.pairwise_distance(unit_input, unit_output) / 2
-            content_loss = torch.mean(content_loss)
+                output_embeddings = self.onehot_embeddings(generated_seqs)
+                output_embeddings = self.encoder(inputs_embeds=output_embeddings).last_hidden_state
+                output_embeddings = torch.mean(output_embeddings, 1)
+                
+                if self.content_loss_type == 'cosine':
+                    content_loss = F.cosine_similarity(input_embeddings, output_embeddings)
+                elif self.content_loss_type == 'pairwise': 
+                    content_loss = F.pairwise_distance(input_embeddings, output_embeddings)
+                elif self.content_loss_type == "normalized_pairwise": # normalized Euclidean Distance
+                    unit_input = F.normalize(input_embeddings)
+                    unit_output = F.normalize(output_embeddings)
+                    content_loss = F.pairwise_distance(unit_input, unit_output) / 2
+                content_loss = torch.mean(content_loss)
+
+                
         else:
             content_loss = 0
 

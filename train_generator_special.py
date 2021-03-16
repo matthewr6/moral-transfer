@@ -16,7 +16,7 @@ from models.custom_transformer_classifier import OneHotMoralClassifier
 from data import NewsDataset
 
 import sys
-assert len(sys.argv) > 1
+# assert len(sys.argv) > 1
 # exp_idx = int(sys.argv[1])
 exp_idx = 0
 

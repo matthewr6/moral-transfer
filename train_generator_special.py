@@ -64,7 +64,7 @@ def train(gpus):
         freeze_encoder = False
         include_moral_tokens = False
 
-    data['train'] =  data['train'][0:2]
+    data['train'] =  data['train']
     train_dataset = NewsDataset(data['train'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
     val_dataset = NewsDataset(data['val'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
     test_dataset = NewsDataset(data['test'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)

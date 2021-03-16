@@ -194,7 +194,6 @@ class MoralTransformerSpecial(pl.LightningModule):
         return {'loss': loss}
     
     def training_epoch_end(self, outputs):
-        import pdb; pdb.set_trace()
         self.training_epoch_count += 1
         if self.training_epoch_count >= 10: 
             self.use_moral_loss = True

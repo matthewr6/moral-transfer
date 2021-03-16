@@ -137,6 +137,7 @@ class MoralTransformerSpecial(pl.LightningModule):
         if self.use_content_loss:
             # different loss for first 10 epochs
             if self.training_epoch_count < 10: 
+                import pdb; pdb.set_trace()
                 input_seqs = F.one_hot(input_seqs, num_classes=50264).float()
                 content_loss = nn.CrossEntropyLoss()(generated_seqs, input_seqs)
             else:

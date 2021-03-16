@@ -122,7 +122,8 @@ class MoralTransformerSpecial(pl.LightningModule):
         decoded = self.decoder(input_ids=decoder_seqs, attention_mask=decoder_mask, encoder_hidden_states=encoded, encoder_attention_mask=encoder_mask).last_hidden_state
 
         outputs = self.lm_head(decoded)
-        outputs = F.softmax(outputs, dim=-1)
+        if self.training_epoch_count >= 10: 
+            outputs = F.softmax(outputs, dim=-1)
         return outputs
 
     def loss_fn(self, input_seqs, generated_seqs, moral_targets, predicted_morals): 
@@ -137,7 +138,7 @@ class MoralTransformerSpecial(pl.LightningModule):
             # different loss for first 10 epochs
             if self.training_epoch_count < 10: 
                 input_seqs = F.one_hot(input_seqs, num_classes=50264).float()
-                content_loss = nn.BCELoss()(generated_seqs, input_seqs)
+                content_loss = nn.CrossEntropyLoss()(generated_seqs, input_seqs)
            else:
                 input_embeddings = self.encoder(input_seqs).last_hidden_state
                 input_embeddings = torch.mean(input_embeddings, 1)
@@ -172,6 +173,8 @@ class MoralTransformerSpecial(pl.LightningModule):
         encdec_mask = batch['encdec_mask']
         target_morals = batch['target_morals']
 
+        import pdb; pdb.set_trace()
+
         # encoder_seqs, decoder_seqs, encoder_mask, decoder_mask, moral_targets
         if self.feed_moral_tokens_to == 'encoder':
             generated_seqs = self.forward(ids_with_moral_tokens, original_ids, encdec_mask, original_mask, target_morals)
@@ -179,6 +182,7 @@ class MoralTransformerSpecial(pl.LightningModule):
             generated_seqs = self.forward(original_ids, ids_with_moral_tokens, original_mask, encdec_mask, target_morals)
 
         predicted_morals = self.discriminator(generated_seqs) 
+        
 
         if self.use_original_morals:
             original_morals = batch['original_morals']

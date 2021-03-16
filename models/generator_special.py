@@ -137,7 +137,6 @@ class MoralTransformerSpecial(pl.LightningModule):
         if self.use_content_loss:
             # different loss for first 10 epochs
             if self.training_epoch_count < 10: 
-                import pdb; pdb.set_trace()
                 generated_seqs = torch.transpose(generated_seqs, 1, 2)
                 content_loss = nn.CrossEntropyLoss()(generated_seqs, input_seqs)
             else:
@@ -173,8 +172,6 @@ class MoralTransformerSpecial(pl.LightningModule):
         original_mask = batch['original_mask']
         encdec_mask = batch['encdec_mask']
         target_morals = batch['target_morals']
-
-        import pdb; pdb.set_trace()
 
         # encoder_seqs, decoder_seqs, encoder_mask, decoder_mask, moral_targets
         if self.feed_moral_tokens_to == 'encoder':

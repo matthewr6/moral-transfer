@@ -88,7 +88,8 @@ class NewsDataset(torch.utils.data.Dataset):
         return data
 
     def __len__(self):
-        return len(self.data)
+        # return len(self.data)
+        return 1
 
     def __getitem__(self, index):
         article = self.data[index]

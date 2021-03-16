@@ -58,6 +58,8 @@ class MoralTransformer(pl.LightningModule):
         self.use_moral_loss = use_moral_loss
         self.use_content_loss = use_content_loss
         self.content_loss_type = content_loss_type
+
+        self.loss_history = []
         
         self.tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
         self.bart_scorer = BartScorer()
@@ -172,6 +174,7 @@ class MoralTransformer(pl.LightningModule):
         loss = self.loss_fn(original_ids, generated_seqs, target_morals, predicted_morals)
 
         self.log('train_loss', loss)
+        self.loss_history.append(loss.item())
         return {'loss': loss}
 
     def validation_step(self, batch, batch_nb):

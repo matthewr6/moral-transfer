@@ -61,7 +61,7 @@ class MoralTransformerSpecial(pl.LightningModule):
 
         self.loss_history = []
         self.training_epoch_count = 10
-        self.use_original_morals = True 
+        self.use_original_morals = False 
         
         self.tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
         self.bart_scorer = BartScorer()

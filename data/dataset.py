@@ -123,8 +123,8 @@ class NewsDataset(torch.utils.data.Dataset):
         return {
             'original_ids':  torch.tensor(original_ids, dtype=torch.long),
             'ids_with_moral_tokens':   torch.tensor(ids_with_moral_tokens, dtype=torch.long),
-
             'original_mask': torch.tensor(original_mask, dtype=torch.long),
             'encdec_mask':   torch.tensor(encdec_mask, dtype=torch.long),
+            'original_morals': torch.tensor(original_morals, dtype=torch.float)
             'target_morals': torch.tensor(target_morals, dtype=torch.float)
         }

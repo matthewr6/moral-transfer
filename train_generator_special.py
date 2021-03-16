@@ -52,7 +52,6 @@ def train(gpus):
 
     exp_name = '_'.join([feed_moral_tokens_to, str(lr), moral_mode, str(content_loss_type), str(use_moral_loss)])
 
-    exp_name='TMP'
     print(exp_name)
 
     # stuff to keep
@@ -97,7 +96,7 @@ def train(gpus):
     trainer = Trainer(gpus=gpus, 
                     # auto_lr_find=False, # use to explore LRs
                     # distributed_backend='dp',
-                    max_epochs=25,
+                    max_epochs=30,
                     callbacks=[checkpoint_callback],
                     )
 

@@ -172,6 +172,9 @@ class MoralTransformerSpecial(pl.LightningModule):
         original_mask = batch['original_mask']
         encdec_mask = batch['encdec_mask']
         target_morals = batch['target_morals']
+        if self.use_original_morals:
+            target_morals = batch['original_morals']
+
 
         # encoder_seqs, decoder_seqs, encoder_mask, decoder_mask, moral_targets
         if self.feed_moral_tokens_to == 'encoder':
@@ -182,11 +185,7 @@ class MoralTransformerSpecial(pl.LightningModule):
         predicted_morals = self.discriminator(generated_seqs) 
         
 
-        if self.use_original_morals:
-            original_morals = batch['original_morals']
-            loss = self.loss_fn(original_ids, generated_seqs, original_morals, predicted_morals)
-        else: 
-            loss = self.loss_fn(original_ids, generated_seqs, target_morals, predicted_morals)
+        loss = self.loss_fn(original_ids, generated_seqs, target_morals, predicted_morals)
 
 
         self.log('train_loss', loss)
@@ -209,6 +208,9 @@ class MoralTransformerSpecial(pl.LightningModule):
         original_mask = batch['original_mask']
         encdec_mask = batch['encdec_mask']
         target_morals = batch['target_morals']
+        
+        if self.use_original_morals:
+            target_morals = batch['original_morals']
 
         # encoder_seqs, decoder_seqs, encoder_mask, decoder_mask, moral_targets
         if self.feed_moral_tokens_to == 'encoder':

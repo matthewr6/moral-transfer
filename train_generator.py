@@ -21,12 +21,12 @@ exp_idx = int(sys.argv[1])
 
 # [moral tokens to, lr, moral mode, content loss metric, include moral loss]
 experiments = [
-    ['decoder', 1e-6, 'identity', 'normalized_pairwise', False],
-    ['encoder', 1e-6, 'identity', 'normalized_pairwise', False],
+    ['decoder', 1e-6, 'identity', 'normalized_pairwise', False], # next step: tuning on random morals
+    ['encoder', 1e-6, 'identity', 'normalized_pairwise', False], # next step: tuning on random morals
     ['decoder', 1e-6, 'random', 'normalized_pairwise', True],
     ['encoder', 1e-6, 'random', 'normalized_pairwise', True],
 
-    # ['injection', 1e-6, 'identity', 'normalized_pairwise', False], # TODO IF TIME
+    # ['injection', 1e-6, 'identity', 'normalized_pairwise', False], # TODO IF TIME # next step: tuning on random morals
     # ['injection', 1e-6, 'random', 'normalized_pairwise', True], # TODO IF TIME
 ]
 
@@ -49,7 +49,6 @@ def train(gpus):
 
     exp_name = '_'.join([feed_moral_tokens_to, str(lr), moral_mode, str(content_loss_type), str(use_moral_loss)])
 
-    exp_name='TMP'
     print(exp_name)
 
     # stuff to keep
@@ -65,8 +64,8 @@ def train(gpus):
     val_dataset = NewsDataset(data['val'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
     test_dataset = NewsDataset(data['test'], moral_mode=moral_mode, include_moral_tokens=include_moral_tokens)
 
-    train_loader = DataLoader(train_dataset, batch_size=16, num_workers=4, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=16, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=8, num_workers=4, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=8, num_workers=4)
 
 
     # ------------
@@ -106,7 +105,6 @@ def train(gpus):
 
     with open(os.path.join("./experiments", exp_name, 'loss_history.pkl'), 'wb') as f:
         pickle.dump(model.loss_history, f)
-    print(model.loss_history)
 
     print("Training Done")
 

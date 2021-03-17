@@ -51,7 +51,7 @@ def train(gpus):
     use_moral_loss = exp[4]
 
     exp_name = '_'.join([feed_moral_tokens_to, str(lr), moral_mode, str(content_loss_type), str(use_moral_loss)])
-    exp_name = "test " + exp_name 
+    exp_name = "RESUME+weighted_loss " + exp_name 
     print(exp_name)
 
     # stuff to keep
@@ -113,7 +113,7 @@ def train(gpus):
 
     with open(os.path.join("./experiments", exp_name, 'loss_history.pkl'), 'wb') as f:
         pickle.dump(model.loss_history, f)
-    print(model.loss_history)
+    # print(model.loss_history)
 
     print("Training Done")
 

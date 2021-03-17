@@ -162,8 +162,7 @@ class MoralTransformerSpecial(pl.LightningModule):
             content_loss = 0
 
         # 3. Final loss
-        # loss = (moral_loss + 100 * content_loss) / 101
-        loss = moral_loss + 100 * content_loss
+        loss = (moral_loss + 100 * content_loss) / 101
         return loss
 
     def training_step(self, batch, batch_idx):

@@ -35,7 +35,8 @@ discriminator.load_state_dict(torch.load('discriminator_titlemorals_state.pkl'))
 
 model = MoralTransformer(discriminator=discriminator)
 # model.load_state_dict(torch.load('experiments/exp1/checkpoints/epoch=6-step=69999.ckpt')['state_dict'])
-model.load_state_dict(torch.load('experiments/decoder_1e-06_id+random_normalized_pairwise_False/checkpoints/epoch=9-step=26589.ckpt')['state_dict'])
+# model.load_state_dict(torch.load('experiments/decoder_1e-06_id+random_normalized_pairwise_False/checkpoints/epoch=9-step=26589.ckpt')['state_dict'])
+model.load_state_dict(torch.load('experiments/RESUME decoder_1e-06_id+random_normalized_pairwise_True/checkpoints/epoch=25-step=69133.ckpt')['state_dict'])
 model = model.cuda()
 model.eval()
 

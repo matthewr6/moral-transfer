@@ -127,7 +127,7 @@ class MoralTransformerSpecial(pl.LightningModule):
         return outputs
 
     def loss_fn(self, input_seqs, generated_seqs, moral_targets, predicted_morals): 
-        # 1. Moral loss
+        1. Moral loss
         if self.use_moral_loss:
             moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
         else:
@@ -162,7 +162,8 @@ class MoralTransformerSpecial(pl.LightningModule):
             content_loss = 0
 
         # 3. Final loss
-        loss = moral_loss + content_loss
+        # loss = (moral_loss + 100 * content_loss) / 101
+        loss = moral_loss + 100 * content_loss
         return loss
 
     def training_step(self, batch, batch_idx):

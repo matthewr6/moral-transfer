@@ -158,3 +158,8 @@ f1_score_macro = metrics.f1_score(targets, outputs, average='macro')
 print(f"Accuracy Score = {accuracy}")
 print(f"F1 Score (Micro) = {f1_score_micro}")
 print(f"F1 Score (Macro) = {f1_score_macro}")
+
+print("F1 score per moral:")
+
+for feature_idx in range(targets.shape[1]):
+    print(metrics.f1_score(targets[:, feature_idx], outputs[:, feature_idx]))

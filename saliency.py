@@ -5,6 +5,7 @@ from transformers import BertTokenizer, BertModel
 from torchtext import data
 import spacy
 import numpy as np
+import torch.nn as nn
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 
@@ -68,10 +69,23 @@ def bertviz_modelview(model, tokenizer, sentence_a, sentence_b=None, hide_delimi
 
 def sentence_saliency(sentence, model, train_data):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
     TEXT = data.Field(tokenize='spacy')
     TEXT.build_vocab(train_data, max_size=25000, vectors='glove.6B.100d', unk_init=torch.Tensor.normal_)
-    TEXT.vocab.vectors[0] = TEXT.vocab.vectors[1] = torch.zeros(EMBEDDING_SIZE=100)
+
+    # Initialize hyper-parameters
+    VOCAB_SIZE = len(TEXT.vocab)
+    EMBEDDING_SIZE = 100
+    PAD_IDX = TEXT.vocab.stoi[TEXT.pad_token]
+
+    TEXT.vocab.vectors[0] = TEXT.vocab.vectors[1] = torch.zeros(EMBEDDING_SIZE)
     nlp = spacy.load('en')
+
+    embed = nn.Embedding(VOCAB_SIZE, EMBEDDING_SIZE, padding_idx=PAD_IDX).to(device)
+    embed.weight.data.copy_(pretrained_embedding=TEXT.vocab.vectors)
+    UNK_IDX = TEXT.vocab.stoi[TEXT.unk_token]
+    embed.weight.data[PAD_IDX] = torch.zeros(EMBEDDING_SIZE)
+    embed.weight.data[UNK_IDX] = torch.zeros(EMBEDDING_SIZE)
 
     tokenized = [tok.text for tok in nlp.tokenizer(sentence)]
     indexed = [TEXT.vocab.stoi[t] for t in tokenized]

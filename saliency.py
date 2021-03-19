@@ -140,4 +140,5 @@ print('Generator state loaded')
 model = model.cuda()
 model.dropout.eval()
 
+plot_saliency_heatmap("Those protestors hate politicians", model, )
 

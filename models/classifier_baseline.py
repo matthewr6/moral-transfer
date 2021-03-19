@@ -150,8 +150,8 @@ def validation():
 outputs, targets = validation()
 print(outputs[:10])
 print(targets[:10])
-outputs[outputs >= 0] = 1
-outputs[outputs < 0] = 0
+outputs[outputs >= 0.5] = 1
+outputs[outputs < 0.5] = 0
 accuracy = metrics.accuracy_score(targets, outputs)
 f1_score_micro = metrics.f1_score(targets, outputs, average='micro')
 f1_score_macro = metrics.f1_score(targets, outputs, average='macro')

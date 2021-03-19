@@ -41,7 +41,7 @@ class NewsDataset(Dataset):
 
 print("Start")
 file = open('../data/nela-covid-2020/combined/headlines_manual.pkl', 'rb')
-data = pickle.load(file)['train']
+data = pickle.load(file)
 # file = open('../data/nela-covid-2020/combined/headlines_contentmorals_cnn_bart_split.pkl', 'rb')
 # data = pickle.load(file)['train']
 data = [d for d in data if sum(d['moral_features'])]
@@ -150,8 +150,8 @@ def validation():
 outputs, targets = validation()
 print(outputs[:10])
 print(targets[:10])
-outputs[outputs >= 0.5] = 1
-outputs[outputs < 0.5] = 0
+outputs[outputs >= 0] = 1
+outputs[outputs < 0] = 0
 accuracy = metrics.accuracy_score(targets, outputs)
 f1_score_micro = metrics.f1_score(targets, outputs, average='micro')
 f1_score_macro = metrics.f1_score(targets, outputs, average='macro')

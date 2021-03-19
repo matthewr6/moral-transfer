@@ -6,6 +6,8 @@ from torchtext import data
 import spacy
 import numpy as np
 import torch.nn as nn
+from models import MoralTransformer
+from models.custom_transformer_classifier import OneHotMoralClassifier
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 
@@ -124,3 +126,16 @@ def plot_saliency_heatmap(sentence):
     ax.set_title("Saliency heatmap for moral classification")
 
     plt.savefig('SaliencyHeatmap_' + sentence + '.pdf', format='pdf')
+
+
+discriminator = OneHotMoralClassifier({}, use_mask=False)
+print('Loading discriminator...')
+discriminator.load_state_dict(torch.load('final_models/discriminator_titlemorals_state.pkl'))
+print('Discriminator loaded')
+
+model = MoralTransformer(discriminator=discriminator)
+print('Loading generator state...')
+model.load_state_dict(torch.load('final_models/special_finetuned/last.ckpt')['state_dict'])
+print('Generator state loaded')
+model = model.cuda()
+model.eval()

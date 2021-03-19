@@ -106,8 +106,8 @@ def sentence_saliency(sentence, model, train_data):
     return saliency_list
 
 
-def plot_saliency_heatmap(sentence):
-    saliency_list = sentence_saliency(sentence, model, )
+def plot_saliency_heatmap(sentence, model, train_data):
+    saliency_list = sentence_saliency(sentence, model, train_data)
     nlp = spacy.load('en')
     words = [tok for tok in nlp.tokenizer(sentence)]
 
@@ -128,17 +128,17 @@ def plot_saliency_heatmap(sentence):
     plt.savefig('SaliencyHeatmap_' + sentence + '.pdf', format='pdf')
 
 
-discriminator = OneHotMoralClassifier({}, use_mask=False)
-print('Loading discriminator...')
-discriminator.load_state_dict(torch.load('final_models/discriminator_titlemorals_state.pkl'))
-print('Discriminator loaded')
-
-model = MoralTransformer(discriminator=discriminator)
-print('Loading generator state...')
-model.load_state_dict(torch.load('final_models/special_finetuned/last.ckpt')['state_dict'])
-print('Generator state loaded')
-model = model.cuda()
-model.dropout.eval()
-
-plot_saliency_heatmap("Those protestors hate politicians", model, )
+# discriminator = OneHotMoralClassifier({}, use_mask=False)
+# print('Loading discriminator...')
+# discriminator.load_state_dict(torch.load('final_models/discriminator_titlemorals_state.pkl'))
+# print('Discriminator loaded')
+#
+# model = MoralTransformer(discriminator=discriminator)
+# print('Loading generator state...')
+# model.load_state_dict(torch.load('final_models/special_finetuned/last.ckpt')['state_dict'])
+# print('Generator state loaded')
+# model = model.cuda()
+# model.dropout.eval()
+#
+# plot_saliency_heatmap("Those protestors hate politicians", model, )
 

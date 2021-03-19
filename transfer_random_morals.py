@@ -33,12 +33,12 @@ dataloader = DataLoader(dataset, batch_size=8, num_workers=4)
 
 discriminator = OneHotMoralClassifier({}, use_mask=False)
 print('Loading discriminator...')
-discriminator.load_state_dict(torch.load('saved_models/discriminator_titlemorals_state.pkl'))
+discriminator.load_state_dict(torch.load('final_models/discriminator_titlemorals_state.pkl'))
 print('Discriminator loaded')
 
 model = MoralTransformer(discriminator=discriminator)
 print('Loading generator state...')
-model.load_state_dict(torch.load('experiments/RESUME decoder_1e-06_id+random_embedding_normalized_pairwise_True/checkpoints/last.ckpt')['state_dict'])
+model.load_state_dict(torch.load('final_models/special_finetuned/last.ckpt')['state_dict'])
 print('Generator state loaded')
 model = model.cuda()
 model.eval()
@@ -102,15 +102,11 @@ def trim(string):
 #         'orig_morals': original_morals.squeeze(0).tolist(),
 #         'target_morals': target_morals.squeeze(0).tolist()
 #     })
-#     # gen_tokens = 
-#     # print('')
 
 trainer = Trainer(gpus=1)
-
 with torch.no_grad():
     model.eval()
     res = trainer.test(model, dataloader)
-
 print(res)
 
 # pickle.dump(results, open('results.pkl', 'wb'))

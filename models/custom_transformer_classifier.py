@@ -16,6 +16,7 @@ from transformers import BartTokenizerFast
 
 
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
+from collections import defaultdict
 
 from transformers import BartModel, BartConfig
 
@@ -171,12 +172,20 @@ class OneHotMoralClassifier(pl.LightningModule):
             print(metrics.f1_score(y[:, feature_idx], y_preds[:, feature_idx]))
 
         print("Wrong Results")
+        wrong = defaultdict(list)
         for index, y_pred in enumerate(y_preds): 
             if not np.array_equal(y_pred, y[index]):
                 print('Input:  {}'.format(input_text[index]))
                 print('Original morals: {}'.format(', '.join(get_target_moral_names(y[index]))))
                 print('Predicted morals:   {}'.format(', '.join(get_target_moral_names(y_pred))))
                 print("")
+                data = {"Input":input_text[index], "OG Morals": get_target_moral_names(y[index]), "Predicted Morals": get_target_moral_names(y_pred)}
+                for key, value in data.items():
+                    wrong[key].append(value)
+        
+        import pdb; pdb.set_trace()
+        file_df = pd.DataFrame(wrong)
+        file_df.to_csv("./classifier_wrong.csv", mode='w', header=True)
 
         accuracy = metrics.accuracy_score(y, y_preds)
         f1_score_micro = metrics.f1_score(y, y_preds, average='micro')

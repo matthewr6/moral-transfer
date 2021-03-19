@@ -48,6 +48,9 @@ input_size = 11
 # data = pickle.load(file)['train']
 # input_size = 10
 
+hidden_size = 128
+embed_size = 32
+
 data = [d for d in data if sum(d['moral_features'])]
 file.close()
 print("Data Loaded")
@@ -72,7 +75,7 @@ print(len(training_loader))
 
 
 class MoralClassifier(torch.nn.Module):
-    def __init__(self, vocab_size, hidden_size=512, embedding_dim=256):
+    def __init__(self, vocab_size, hidden_size=hidden_size, embedding_dim=embed_size):
         super(MoralClassifier, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.lstm = nn.LSTM(embedding_dim, hidden_size, batch_first=True)

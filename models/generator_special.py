@@ -49,7 +49,7 @@ class MoralTransformerSpecial(pl.LightningModule):
                 freeze_encoder=True, freeze_decoder=True, contextual_injection=True, 
                 n_contextual_linear=2, moral_vec_size=10, 
                 use_content_loss=False, content_loss_type='cosine',
-                feed_moral_tokens_to='encoder', use_moral_loss=False):
+                feed_moral_tokens_to='encoder', use_moral_loss=False, content_loss_weighting=1, moral_loss_weighting=1):
         super().__init__()
         assert n_contextual_linear >= 1
         self.lr = lr
@@ -58,6 +58,8 @@ class MoralTransformerSpecial(pl.LightningModule):
         self.use_moral_loss = use_moral_loss
         self.use_content_loss = use_content_loss
         self.content_loss_type = content_loss_type
+        self.content_loss_weighting = content_loss_weighting
+        self.moral_loss_weighting = moral_loss_weighting
 
         self.loss_history = []
         self.training_epoch_count = 10
@@ -129,7 +131,7 @@ class MoralTransformerSpecial(pl.LightningModule):
     def loss_fn(self, input_seqs, generated_seqs, moral_targets, predicted_morals): 
         # 1. Moral loss
         if self.use_moral_loss:
-            moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets)
+            moral_loss = self.discriminator.loss_fn(predicted_morals, moral_targets) * self.moral_loss_weighting
         else:
             moral_loss = 0
 
@@ -155,7 +157,12 @@ class MoralTransformerSpecial(pl.LightningModule):
                     unit_input = F.normalize(input_embeddings)
                     unit_output = F.normalize(output_embeddings)
                     content_loss = F.pairwise_distance(unit_input, unit_output) / 2
-                content_loss = torch.mean(content_loss)
+                elif self.content_loss_type == 'embedding_normalized_pairwise':
+                    input_embeddings = F.normalize(self.embedding(input_seqs))
+                    output_embeddings = F.normalize(self.onehot_embeddings(generated_seqs))
+                    content_loss = F.pairwise_distance(input_embeddings, output_embeddings) / 2
+
+                content_loss = torch.mean(content_loss) * self.content_loss_weighting
 
                 
         else:

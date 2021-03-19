@@ -177,6 +177,26 @@ class MoralTransformer(pl.LightningModule):
         self.loss_history.append(loss.item())
         return {'loss': loss}
 
+    def test_step(self, batch, batch_idx):
+        original_ids = batch['original_ids']
+        ids_with_moral_tokens = batch['ids_with_moral_tokens']
+
+        original_mask = batch['original_mask']
+        encdec_mask = batch['encdec_mask']
+        target_morals = batch['target_morals']
+
+        # encoder_seqs, decoder_seqs, encoder_mask, decoder_mask, moral_targets
+        if self.feed_moral_tokens_to == 'encoder':
+            generated_seqs = self.forward(ids_with_moral_tokens, original_ids, encdec_mask, original_mask, target_morals)
+        else:
+            generated_seqs = self.forward(original_ids, ids_with_moral_tokens, original_mask, encdec_mask, target_morals)
+        predicted_morals = self.discriminator(generated_seqs) 
+
+        return {
+            'generated': generated_seqs, 
+            'predicted_morals': predicted_morals
+        }
+
     def validation_step(self, batch, batch_nb):
         original_ids = batch['original_ids']
         ids_with_moral_tokens = batch['ids_with_moral_tokens']

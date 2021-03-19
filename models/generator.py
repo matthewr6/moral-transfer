@@ -178,22 +178,57 @@ class MoralTransformer(pl.LightningModule):
         return {'loss': loss}
 
     def test_step(self, batch, batch_idx):
+        # return self.validation_step(batch, batch_idx)
         original_ids = batch['original_ids']
         ids_with_moral_tokens = batch['ids_with_moral_tokens']
 
         original_mask = batch['original_mask']
         encdec_mask = batch['encdec_mask']
+        original_morals = batch['original_morals']
         target_morals = batch['target_morals']
 
         # encoder_seqs, decoder_seqs, encoder_mask, decoder_mask, moral_targets
         if self.feed_moral_tokens_to == 'encoder':
-            generated_seqs = self.forward(ids_with_moral_tokens, original_ids, encdec_mask, original_mask, target_morals)
+            generated_probs = self.forward(ids_with_moral_tokens, original_ids, encdec_mask, original_mask, target_morals)
         else:
-            generated_seqs = self.forward(original_ids, ids_with_moral_tokens, original_mask, encdec_mask, target_morals)
-        predicted_morals = self.discriminator(generated_seqs) 
+            generated_probs = self.forward(original_ids, ids_with_moral_tokens, original_mask, encdec_mask, target_morals)
+        predicted_morals = self.discriminator(generated_probs) 
+
+        generated_probs = torch.argmax(generated_probs, 2)
 
         return {
-            'generated': generated_seqs, 
+            'original_ids': original_ids.cpu(),
+            'original_morals': original_morals.cpu(),
+            'generated_probs': generated_probs.cpu(), 
+            'predicted_morals': predicted_morals.cpu(),
+            'target_morals': target_morals.cpu()
+        }
+
+    def test_epoch_end(self, outputs):
+        # return self.validation_epoch_end(outputs)
+        original_ids = torch.cat([x['original_ids'] for x in outputs]).cpu().detach().numpy()
+        generated_probs = torch.cat([x['generated_probs'] for x in outputs]).cpu().detach().numpy()
+        
+        original_morals = torch.cat([x['original_morals'] for x in outputs]).cpu().detach().numpy()
+        target_morals = torch.cat([x['target_morals'] for x in outputs]).cpu().detach().numpy()
+        predicted_morals = torch.cat([x['predicted_morals'] for x in outputs]).cpu().detach().numpy()
+        predicted_morals = (predicted_morals >= 0).astype(int)
+
+        for feature_idx in range(target_morals.shape[1]):
+            # print(metrics.accuracy_score(y[:, feature_idx], y_preds[:, feature_idx]), metrics.balanced_accuracy_score(y[:, feature_idx], y_preds[:, feature_idx]))
+            print(metrics.f1_score(target_morals[:, feature_idx], predicted_morals[:, feature_idx]))
+
+        accuracy = metrics.accuracy_score(target_morals, predicted_morals)
+        f1_score_micro = metrics.f1_score(target_morals, predicted_morals, average='micro')
+        f1_score_macro = metrics.f1_score(target_morals, predicted_morals, average='macro')
+
+        print(accuracy, f1_score_micro, f1_score_macro)
+
+        return {
+            'original_ids': original_ids,
+            'original_morals': original_morals,
+            'target_morals': target_morals,
+            'generated_probs': generated_probs, 
             'predicted_morals': predicted_morals
         }
 

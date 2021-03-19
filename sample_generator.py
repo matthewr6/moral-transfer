@@ -33,7 +33,7 @@ test_dataset = NewsDataset(data['test'])
 discriminator = OneHotMoralClassifier({}, use_mask=False)
 discriminator.load_state_dict(torch.load('saved_models/discriminator_titlemorals_state.pkl'))
 
-model = MoralTransformer(discriminator=discriminator)
+model = MoralTransformer(discriminator=discriminator, feed_moral_tokens_to='decoder', contextual_injection=False)
 # model.load_state_dict(torch.load('experiments/exp1/checkpoints/epoch=6-step=69999.ckpt')['state_dict'])
 # model.load_state_dict(torch.load('experiments/decoder_1e-06_id+random_normalized_pairwise_False/checkpoints/epoch=9-step=26589.ckpt')['state_dict'])
 # model.load_state_dict(torch.load('experiments/decoder_1e-06_identity_normalized_pairwise_False/checkpoints/epoch=17-step=95723.ckpt')['state_dict'])

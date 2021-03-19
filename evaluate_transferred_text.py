@@ -14,66 +14,83 @@ import multiprocessing
 
 import spacy
 from nela_features.nela_features import NELAFeatureExtractor, MORAL_FOUNDATION_DICT
-from models.custom_transformer_classifier import OneHotMoralClassifier
+from transformers import BartTokenizerFast
+tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
 
 nela = NELAFeatureExtractor()
 extractor = nela.extract_moral
 moral_foundations = ['AuthorityVice', 'AuthorityVirtue', 'FairnessVice', 'FairnessVirtue', 'HarmVice', 'HarmVirtue', 'IngroupVice', 'IngroupVirtue', 'PurityVice', 'PurityVirtue']
 
-print('Loading discriminator...')
-discriminator = OneHotMoralClassifier({}, use_mask=False)
-discriminator.load_state_dict(torch.load('saved_models/discriminator_titlemorals_state.pkl'))
-print('Discriminator loaded')
-
-def calc_generated_nela_features(article):
+def calc_generated_nela_features(text):
     try:
-        feature_vector, feature_names = extractor(article['new_string']) 
+        feature_vector, feature_names = extractor(text) 
     except Exception as e:
         print(e)
         return None
     feature_dict = dict(zip(feature_names, feature_vector))
-    article['generated_nela_morals'] = [1 if feature_dict[feature_name] > 0 else 0 for feature_name in moral_foundations]
-    return article
+    return [1 if feature_dict[feature_name] > 0 else 0 for feature_name in moral_foundations]
     
-def add_generated_nela_features(data):
+def generated_nela_features(data):
     with multiprocessing.Pool(32) as pool:
         preprocessed = list(tqdm(pool.imap(calc_generated_nela_features, data), total=len(data)))
     return preprocessed
 
-def remove_post_end_tokens(tokens):
-    if 2 not in tokens:
-        return tokens
-    end_idx = tokens.index(2)
-    for i in range(end_idx + 1, len(tokens)):
-        tokens[i] = 1
-    return tokens
+def convert(tokens):
+    sentence = tokenizer.decode(tokens)
+    stop_idx = len(sentence) + 1
+    if '</s>' in sentence:
+        stop_idx = sentence.index('</s>')
+    return sentence[3:stop_idx]
 
-def add_discriminator_predictions(data):
-    for article in tqdm(data):
-        tokens = torch.LongTensor([article['gen_tokens'], remove_post_end_tokens(article['gen_tokens'])])
-        one_hot_tokens = F.one_hot(tokens, num_classes=50264).float()
-        res = discriminator.forward(one_hot_tokens).tolist()
-        article['classifier_prediction'] = [1 if v >= 0 else 0 for v in res[0]]
-        article['classifier_prediction_pruned'] = [1 if v >= 0 else 0 for v in res[1]]
-    return data
+def trim(string):
+    if string[:3] == '<s>':
+        string = string[3:]
+    if '</s>' in string:
+        idx = string.index('</s>')
+        string = string[:idx]
+    return string
 
-# data = pickle.load(open('results.pkl', 'rb'))
-# data = add_generated_nela_features(data)
-# data = add_discriminator_predictions(data)
-# pickle.dump(data, open('results2.pkl', 'wb'))
+results = pickle.load(open('results.pkl', 'rb'))
 
-data = pickle.load(open('results2.pkl', 'rb'))
+input_text = [convert(tokens=t) for t in results['original_ids']]
+gen_text = [convert(tokens=t) for t in results['generated_probs']]
 
-target_morals = [d['target_morals'] for d in data]
+nela_morals = generated_nela_features(gen_text)
 
-# truth = [d['generated_nela_morals'] for d in data]
-# truth = [d['classifier_prediction'] for d in data]
-truth = [d['classifier_prediction_pruned'] for d in data]
-
-accuracy = metrics.accuracy_score(truth, target_morals)
-f1_score_micro = metrics.f1_score(truth, target_morals, average='micro')
-f1_score_macro = metrics.f1_score(truth, target_morals, average='macro')
+accuracy = metrics.accuracy_score(nela_morals, results['target_morals'])
+f1_score_micro = metrics.f1_score(nela_morals, results['target_morals'], average='micro')
+f1_score_macro = metrics.f1_score(nela_morals, results['target_morals'], average='macro')
 
 print('Acc:', accuracy)
 print('F1 micro:', f1_score_micro)
 print('F1 macro:', f1_score_macro)
+
+results['input_text'] = input_text
+results['gen_text'] = gen_text
+results['gen_nela_morals'] = nela_morals
+
+pickle.dump(results, open('results_processed.pkl', 'wb'))
+
+def get_target_moral_names(targets):
+    r = []
+    for idx, t in enumerate(targets):
+        if t:
+            r.append(moral_foundations[idx])
+    return r
+
+print(len(results['input_text']))
+while True:
+    try:
+        idx = int(input('Sample idx: '))
+        assert idx < len(results['input_text'])
+    except:
+        continue
+    if idx < 0:
+        break
+    print('Input:  {}'.format(results['input_text'][idx]))
+    print('Original morals: {}'.format(', '.join(get_target_moral_names(results['original_morals'][idx]))))
+    print('Target morals:   {}'.format(', '.join(get_target_moral_names(results['target_morals'][idx]))))
+    print('Output: {}'.format(results['gen_text'][idx]))
+    print('NELA morals:     {}'.format(', '.join(get_target_moral_names(results['gen_nela_morals'][idx]))))
+    print('')
+

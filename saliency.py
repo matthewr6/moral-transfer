@@ -107,7 +107,7 @@ def sentence_saliency(sentence, model, train_data):
 
 
 def plot_saliency_heatmap(sentence):
-    saliency_list = sentence_saliency(sentence)
+    saliency_list = sentence_saliency(sentence, model, )
     nlp = spacy.load('en')
     words = [tok for tok in nlp.tokenizer(sentence)]
 
@@ -138,4 +138,6 @@ print('Loading generator state...')
 model.load_state_dict(torch.load('final_models/special_finetuned/last.ckpt')['state_dict'])
 print('Generator state loaded')
 model = model.cuda()
-model.eval()
+model.dropout.eval()
+
+

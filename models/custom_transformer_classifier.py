@@ -17,6 +17,17 @@ from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampl
 
 from transformers import BartModel, BartConfig
 
+tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
+
+moral_foundations = ['AuthorityVice', 'AuthorityVirtue', 'FairnessVice', 'FairnessVirtue', 'HarmVice', 'HarmVirtue', 'IngroupVice', 'IngroupVirtue', 'PurityVice', 'PurityVirtue']
+def get_target_moral_names(targets):
+    r = []
+    for idx, t in enumerate(targets):
+        if t:
+            r.append(moral_foundations[idx])
+    return r
+
+
 device = torch.cuda.current_device() if torch.cuda.is_available() else 'cpu'
 
 class OneHotMoralClassifier(pl.LightningModule):
@@ -130,7 +141,8 @@ class OneHotMoralClassifier(pl.LightningModule):
         y_hat = self.forward(one_hot_encodings, original_mask)
         loss = self.loss_fn(y_hat, target_morals)
         y_preds = (y_hat >= 0).int()  
-        stats =  {'test_loss': loss, 
+        stats =  { 'original_ids' = original_ids,
+                  'test_loss': loss, 
                    'progress_bar': {'test_loss': loss},
                    'y_preds': y_preds,
                    'y_hat': y_hat,
@@ -139,11 +151,17 @@ class OneHotMoralClassifier(pl.LightningModule):
         self.log('test_loss', loss)
         return {**stats}
     
+    
     def test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         y = torch.cat([x['y'] for x in outputs])
         y_preds = torch.cat([x['y_preds'] for x in outputs])
         y_hat = torch.cat([x['y_hat'] for x in outputs])
+        original_ids = torch.cat([x['original_ids'] for x in outputs])
+
+        import pdb; pdb.set_trace()
+
+        input_text = [self.convert(tokens=t) for t in original_ids]
 
         y = y.cpu().detach().numpy()
         y_preds = y_preds.cpu().detach().numpy()
@@ -151,6 +169,14 @@ class OneHotMoralClassifier(pl.LightningModule):
         for feature_idx in range(y.shape[1]):
             # print(metrics.accuracy_score(y[:, feature_idx], y_preds[:, feature_idx]), metrics.balanced_accuracy_score(y[:, feature_idx], y_preds[:, feature_idx]))
             print(metrics.f1_score(y[:, feature_idx], y_preds[:, feature_idx]))
+
+        print("Wrong Results")
+        for index, y_pred in enumerate(y_preds): 
+            if y_pred != y[index]:
+                print('Input:  {}'.format(input_text[index]))
+                print('Original morals: {}'.format(', '.join(get_target_moral_names(y[index]))))
+                print('Predicted morals:   {}'.format(', '.join(get_target_moral_names(y_pred))))
+        
 
         accuracy = metrics.accuracy_score(y, y_preds)
         f1_score_micro = metrics.f1_score(y, y_preds, average='micro')
@@ -165,6 +191,22 @@ class OneHotMoralClassifier(pl.LightningModule):
         self.log('test_loss', avg_loss)
         print(stats)
         return {**stats}
+
+        
+    def convert(self, tokens):
+        sentence = tokenizer.decode(tokens)
+        stop_idx = len(sentence) + 1
+        if '</s>' in sentence:
+            stop_idx = sentence.index('</s>')
+        return sentence[3:stop_idx]
+    
+    def get_target_moral_names(self, targets):
+    r = []
+    for idx, t in enumerate(targets):
+        if t:
+            r.append(moral_foundations[idx])
+    return r
+
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)

@@ -12,6 +12,8 @@ from sklearn import metrics
 import transformers
 import torch
 import pytorch_lightning as pl
+from transformers import BartTokenizerFast
+
 
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
 
@@ -141,7 +143,7 @@ class OneHotMoralClassifier(pl.LightningModule):
         y_hat = self.forward(one_hot_encodings, original_mask)
         loss = self.loss_fn(y_hat, target_morals)
         y_preds = (y_hat >= 0).int()  
-        stats =  { 'original_ids' = original_ids,
+        stats =  { 'original_ids': original_ids,
                   'test_loss': loss, 
                    'progress_bar': {'test_loss': loss},
                    'y_preds': y_preds,
@@ -159,8 +161,6 @@ class OneHotMoralClassifier(pl.LightningModule):
         y_hat = torch.cat([x['y_hat'] for x in outputs])
         original_ids = torch.cat([x['original_ids'] for x in outputs])
 
-        import pdb; pdb.set_trace()
-
         input_text = [self.convert(tokens=t) for t in original_ids]
 
         y = y.cpu().detach().numpy()
@@ -172,11 +172,11 @@ class OneHotMoralClassifier(pl.LightningModule):
 
         print("Wrong Results")
         for index, y_pred in enumerate(y_preds): 
-            if y_pred != y[index]:
+            if not np.array_equal(y_pred, y[index]):
                 print('Input:  {}'.format(input_text[index]))
                 print('Original morals: {}'.format(', '.join(get_target_moral_names(y[index]))))
                 print('Predicted morals:   {}'.format(', '.join(get_target_moral_names(y_pred))))
-        
+                print("")
 
         accuracy = metrics.accuracy_score(y, y_preds)
         f1_score_micro = metrics.f1_score(y, y_preds, average='micro')
@@ -199,14 +199,6 @@ class OneHotMoralClassifier(pl.LightningModule):
         if '</s>' in sentence:
             stop_idx = sentence.index('</s>')
         return sentence[3:stop_idx]
-    
-    def get_target_moral_names(self, targets):
-    r = []
-    for idx, t in enumerate(targets):
-        if t:
-            r.append(moral_foundations[idx])
-    return r
-
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
